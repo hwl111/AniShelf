@@ -51,3 +51,36 @@ export interface AnimeFilter {
   tagId?: number;
   sort?: AnimeSort;
 }
+
+export interface Episode {
+  id: number;
+  animeId: number;
+  episodeNumber: number;
+  title: string;
+  airedAt: number | null;
+  isWatched: boolean;
+  lastWatchedAt: number | null;
+  watchCount: number;
+}
+
+export interface EpisodeInput {
+  episodeNumber: number;
+  title: string;
+  airedAt: number | null;
+}
+
+export interface WatchRecord {
+  id: number;
+  animeId: number;
+  episodeId: number | null;
+  episodeNumber: number;
+  watchedAt: number;
+  comment: string;
+  createdAt: number;
+}
+
+export interface WatchRecordInput {
+  episodeNumber: number;
+  watchedAt: number | null;
+  comment: string;
+}

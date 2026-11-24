@@ -1,8 +1,7 @@
-import { ArrowLeft, ListVideo, Pencil, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { PageContainer } from "@/components/layout/page-container";
@@ -21,6 +20,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 import { AnimeFormDialog } from "../components/anime-form-dialog";
+import { EpisodeSection } from "../components/episode-section";
 import { WatchStatusBadge } from "../components/watch-status-badge";
 import { seasonLabels } from "../constants";
 import { useAnime, useDeleteAnime, useSetAnimeFavorite, useUpdateAnime } from "../queries";
@@ -218,18 +218,7 @@ export function AnimeDetailPage() {
         </Card>
       </div>
 
-      <Card className="bg-card/40">
-        <CardHeader>
-          <CardTitle className="text-sm">单集与观看记录</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyState
-            icon={ListVideo}
-            title="暂无观看记录"
-            description="标记单集已看后，观看进度会显示在这里。"
-          />
-        </CardContent>
-      </Card>
+      <EpisodeSection anime={anime} />
 
       {editOpen ? (
         <AnimeFormDialog

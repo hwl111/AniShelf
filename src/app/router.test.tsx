@@ -15,6 +15,15 @@ vi.mock("@/features/anime/api", () => ({
   updateAnime: vi.fn(),
   deleteAnime: vi.fn(),
   setAnimeFavorite: vi.fn(),
+  listEpisodes: vi.fn().mockResolvedValue([]),
+  createEpisode: vi.fn(),
+  updateEpisode: vi.fn(),
+  deleteEpisode: vi.fn(),
+  setEpisodeWatched: vi.fn(),
+  listWatchRecords: vi.fn().mockResolvedValue([]),
+  addWatchRecord: vi.fn(),
+  updateWatchRecord: vi.fn(),
+  deleteWatchRecord: vi.fn(),
 }));
 
 function renderAt(path: string) {
