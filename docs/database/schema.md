@@ -136,26 +136,29 @@ erDiagram
 
 #### `books`（书籍）
 
-| 字段              | 类型    | 可空 | 约束/默认               | 说明                                    |
-| ----------------- | ------- | ---- | ----------------------- | --------------------------------------- |
-| `id`              | INTEGER | 否   | PK AUTOINCREMENT        |                                         |
-| `title`           | TEXT    | 否   | 非空                    | 书名                                    |
-| `author`          | TEXT    | 否   | 默认 `''`               | 作者                                    |
-| `format`          | TEXT    | 否   | `epub/pdf/txt/markdown` | 格式                                    |
-| `file_path`       | TEXT    | 否   |                         | 原始文件绝对路径（只读引用）            |
-| `normalized_path` | TEXT    | 否   | UNIQUE                  | 去重用的规范化路径（Windows 小写）      |
-| `file_size`       | INTEGER | 否   | ≥ 0                     | 字节                                    |
-| `file_mtime`      | INTEGER | 是   |                         | 文件修改时间（毫秒），用于丢失/冲突检测 |
-| `file_hash`       | TEXT    | 是   |                         | SHA-256（导入时可选计算），重复内容检测 |
-| `cover_path`      | TEXT    | 是   |                         | 应用缓存的封面相对路径                  |
-| `description`     | TEXT    | 否   | 默认 `''`               | 简介                                    |
-| `category`        | TEXT    | 否   | 默认 `''`               | 单分类文本（分类 + 标签组合使用）       |
-| `imported_at`     | INTEGER | 否   |                         | 导入时间                                |
-| `last_opened_at`  | INTEGER | 是   |                         | 最近打开时间                            |
-| `created_at`      | INTEGER | 否   |                         |                                         |
-| `updated_at`      | INTEGER | 否   |                         |                                         |
+| 字段              | 类型    | 可空 | 约束/默认               | 说明                                         |
+| ----------------- | ------- | ---- | ----------------------- | -------------------------------------------- |
+| `id`              | INTEGER | 否   | PK AUTOINCREMENT        |                                              |
+| `title`           | TEXT    | 否   | 非空                    | 书名                                         |
+| `author`          | TEXT    | 否   | 默认 `''`               | 作者                                         |
+| `format`          | TEXT    | 否   | `epub/pdf/txt/markdown` | 格式                                         |
+| `file_path`       | TEXT    | 否   |                         | 原始文件路径；复制到资料库时为应用内副本路径 |
+| `source_path`     | TEXT    | 是   |                         | 复制到资料库时的原始文件路径（0009 迁移）    |
+| `normalized_path` | TEXT    | 否   | UNIQUE                  | 去重用的规范化路径（Windows 小写）           |
+| `file_size`       | INTEGER | 否   | ≥ 0                     | 字节                                         |
+| `file_mtime`      | INTEGER | 是   |                         | 文件修改时间（毫秒），用于丢失/冲突检测      |
+| `file_hash`       | TEXT    | 是   |                         | SHA-256（导入时可选计算），重复内容检测      |
+| `cover_path`      | TEXT    | 是   |                         | 应用缓存的封面相对路径                       |
+| `description`     | TEXT    | 否   | 默认 `''`               | 简介                                         |
+| `category`        | TEXT    | 否   | 默认 `''`               | 单分类文本（分类 + 标签组合使用）            |
+| `imported_at`     | INTEGER | 否   |                         | 导入时间                                     |
+| `last_opened_at`  | INTEGER | 是   |                         | 最近打开时间                                 |
+| `created_at`      | INTEGER | 否   |                         |                                              |
+| `updated_at`      | INTEGER | 否   |                         |                                              |
 
 索引：`UNIQUE(normalized_path)`、`(format)`、`(file_hash)`、`(updated_at DESC)`、`(last_opened_at DESC)`。
+
+> 导入策略：默认引用原始文件（`source_path` 为空，`file_path` 指向原文件）；用户选择“复制到应用资料库”时，`file_path` 指向 `attachments/books/` 下的副本，`source_path` 保留原路径。原始文件始终保持只读，删除书籍只删除应用内副本与封面。
 
 #### `reading_progress`（当前阅读位置，一書一行）
 
@@ -387,7 +390,7 @@ erDiagram
 - 删除 `anime`：`note_relations(target_type='anime')`、`entity_tags('anime')`、`favorites('anime')`。
 - 删除 `anime_episodes`：`note_relations('episode')`。
 - 删除 `watch_records`：`note_relations('watch_record')`。
-- 删除 `books`：先收集该书所有 `annotations.id`，删除 `note_relations('book')` 与这些 annotation 的 `note_relations('annotation')`、`entity_tags('book')`、`entity_tags('annotation')`、`favorites('book')`。
+- 删除 `books`：先收集该书所有 `annotations.id`，删除 `note_relations('book')` 与这些 annotation 的 `note_relations('annotation')`、`entity_tags('book')`、`entity_tags('annotation')`、`favorites('book')`；提交后删除应用管理的封面与副本文件，绝不删除原始文件。
 - 删除 `annotations`：`note_relations('annotation')`、`entity_tags('annotation')`。
 - 删除 `notes`：`entity_tags('note')`、`favorites('note')`（其余由级联处理）。
 - 删除 `attachments` 所有者：删除附件记录与应用内文件。
@@ -422,8 +425,9 @@ erDiagram
 | `0006_relations.sql`          | `note_relations`、`annotation_notes`、`favorites`、`attachments` + 索引 |
 | `0007_activity_logs.sql`      | `activity_logs`、`anime_metadata_sync_logs` + 索引                      |
 | `0008_search.sql`             | 四张 FTS5 表 + 12 个同步触发器                                          |
+| `0009_books_copy.sql`         | `books.source_path`（复制到资料库时保留原路径）                         |
 
-依赖顺序：`annotation_notes` 必须在 `0005`（notes）和 `0004`（annotations）之后；FTS 在全部源表之后。
+依赖顺序：`annotation_notes` 必须在 `0005`（notes）和 `0004`（annotations）之后；FTS 在全部源表之后；0009 只新增可空列。
 
 ## 9. 测试计划
 
