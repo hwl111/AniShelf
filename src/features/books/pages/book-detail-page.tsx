@@ -142,7 +142,7 @@ export function BookDetailPage() {
         }
         actions={
           <>
-            {book.format === "epub" && book.fileExists ? (
+            {(book.format === "epub" || book.format === "pdf") && book.fileExists ? (
               <Button asChild size="sm">
                 <Link to={`/reader/${book.id}`}>
                   <BookOpen className="size-4" aria-hidden="true" />
@@ -296,7 +296,7 @@ export function BookDetailPage() {
             </p>
           </div>
 
-          {book.format === "epub" && book.fileExists ? (
+          {(book.format === "epub" || book.format === "pdf") && book.fileExists ? (
             <Button asChild>
               <Link to={`/reader/${book.id}`}>
                 <BookOpen className="size-4" aria-hidden="true" />
