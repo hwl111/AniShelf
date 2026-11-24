@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "anishelf",
+  "productName": "AniShelf",
   "version": "0.1.0",
   "identifier": "com.anishelf.app",
   "build": {
@@ -12,9 +12,14 @@
   "app": {
     "windows": [
       {
-        "title": "anishelf",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "AniShelf",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "center": true,
+        "theme": "Dark"
       }
     ],
     "security": {
