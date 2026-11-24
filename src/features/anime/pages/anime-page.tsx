@@ -1,6 +1,6 @@
 import { Download, Plus, Star, Tv } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -35,8 +35,18 @@ export function AnimePage() {
   const [yearFilter, setYearFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [sort, setSort] = useState<AnimeSort>("updated_desc");
-  const [formOpen, setFormOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [formOpen, setFormOpen] = useState(() => searchParams.get("action") === "new");
   const [importOpen, setImportOpen] = useState(false);
+
+  function closeForm(open: boolean) {
+    setFormOpen(open);
+    if (!open && searchParams.get("action") === "new") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("action");
+      setSearchParams(next, { replace: true });
+    }
+  }
 
   const filter = useMemo<AnimeFilter>(() => {
     const parsedYear = yearFilter.trim() ? Number(yearFilter) : undefined;
@@ -247,12 +257,12 @@ export function AnimePage() {
       {formOpen ? (
         <AnimeFormDialog
           open
-          onOpenChange={setFormOpen}
+          onOpenChange={closeForm}
           pending={createMutation.isPending}
           onSubmit={(input) =>
             createMutation.mutate(input, {
               onSuccess: (anime) => {
-                setFormOpen(false);
+                closeForm(false);
                 navigate(`/anime/${anime.id}`);
               },
             })

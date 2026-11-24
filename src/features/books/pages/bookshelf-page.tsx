@@ -1,6 +1,6 @@
 import { Library, Star, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -30,7 +30,17 @@ export function BookshelfPage() {
   const [tagFilter, setTagFilter] = useState("");
   const [favoriteFilter, setFavoriteFilter] = useState<"" | "true" | "false">("");
   const [sort, setSort] = useState<BookSort>("updated_desc");
-  const [importOpen, setImportOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [importOpen, setImportOpen] = useState(() => searchParams.get("action") === "import");
+
+  function closeImport(open: boolean) {
+    setImportOpen(open);
+    if (!open && searchParams.get("action") === "import") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("action");
+      setSearchParams(next, { replace: true });
+    }
+  }
 
   const filter = useMemo<BookFilter>(
     () => ({
@@ -224,7 +234,7 @@ export function BookshelfPage() {
       {importOpen ? (
         <BookImportDialog
           open
-          onOpenChange={setImportOpen}
+          onOpenChange={closeImport}
           onImported={(book) => navigate(`/bookshelf/${book.id}`)}
         />
       ) : null}
