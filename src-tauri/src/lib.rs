@@ -54,6 +54,8 @@ pub fn run() {
             commands::book::check_book_file,
             commands::book::relocate_book,
             commands::reader::read_book_bytes,
+            commands::reader::get_text_book_info,
+            commands::reader::read_text_chunk,
             commands::reader::get_reading_progress,
             commands::reader::save_reading_progress,
             commands::reader::list_bookmarks,

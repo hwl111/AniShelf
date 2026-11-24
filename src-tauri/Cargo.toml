@@ -32,6 +32,8 @@ quick-xml = "0.42.0"
 sha2 = "0.11.1"
 hex = "0.4.3"
 url = "2"
+chardetng = "1.0.0"
+encoding_rs = "0.8.44"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

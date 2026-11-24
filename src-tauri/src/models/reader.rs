@@ -45,3 +45,24 @@ pub struct BookmarkInput {
     #[serde(default)]
     pub label: String,
 }
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextBookInfo {
+    pub book_id: i64,
+    pub total_bytes: i64,
+    pub encoding: String,
+    pub has_bom: bool,
+    pub warning: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextChunk {
+    pub text: String,
+    pub start_offset: i64,
+    pub next_offset: i64,
+    pub total_bytes: i64,
+    pub eof: bool,
+    pub had_errors: bool,
+}

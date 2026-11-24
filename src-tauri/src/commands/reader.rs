@@ -4,7 +4,8 @@ use tauri_plugin_opener::OpenerExt;
 use crate::db::AppState;
 use crate::error::AppError;
 use crate::models::reader::{
-    Bookmark, BookmarkInput, ProgressInput, ReaderSettings, ReadingProgress,
+    Bookmark, BookmarkInput, ProgressInput, ReaderSettings, ReadingProgress, TextBookInfo,
+    TextChunk,
 };
 use crate::services::reader_service;
 
@@ -15,6 +16,25 @@ pub async fn read_book_bytes(
 ) -> Result<tauri::ipc::Response, AppError> {
     let bytes = reader_service::read_book_bytes(&state.pool, book_id).await?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+pub async fn get_text_book_info(
+    state: State<'_, AppState>,
+    book_id: i64,
+) -> Result<TextBookInfo, AppError> {
+    reader_service::get_text_book_info(&state.pool, book_id).await
+}
+
+#[tauri::command]
+pub async fn read_text_chunk(
+    state: State<'_, AppState>,
+    book_id: i64,
+    offset: i64,
+    max_bytes: i64,
+    encoding: String,
+) -> Result<TextChunk, AppError> {
+    reader_service::read_text_chunk(&state.pool, book_id, offset, max_bytes, &encoding).await
 }
 
 #[tauri::command]
