@@ -13,12 +13,12 @@ src-tauri/gen/schemas/
 *.sqlite-*
 *.db
 *.db-*
-database/
-backups/
-covers/
-attachments/
-cache/
-logs/
+/database/
+/backups/
+/covers/
+/attachments/
+/cache/
+/logs/
 
 # Environment / secrets
 .env
