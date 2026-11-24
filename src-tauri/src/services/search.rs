@@ -1,6 +1,7 @@
 use sqlx::SqlitePool;
 
 use crate::error::AppError;
+use crate::utils::escape_like;
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,13 +46,6 @@ pub async fn search(
 
 fn phrase(query: &str) -> String {
     format!("\"{}\"", query.replace('"', "\"\""))
-}
-
-fn escape_like(query: &str) -> String {
-    query
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 async fn search_anime_fts(
