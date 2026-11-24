@@ -13,7 +13,6 @@ export function Sidebar() {
 
   return (
     <aside
-      aria-label="主导航"
       className={cn(
         "flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         collapsed ? "w-16" : "w-60",
@@ -33,7 +32,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+      <nav aria-label="主导航" className="flex-1 space-y-1 overflow-y-auto p-2">
         {navigationItems.map((item) => {
           const link = (
             <NavLink
