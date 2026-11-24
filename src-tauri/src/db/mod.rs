@@ -9,6 +9,9 @@ use crate::error::AppError;
 
 pub mod migrate;
 
+#[cfg(test)]
+mod schema_tests;
+
 /// Directories created on startup. Import, reader and backup phases consume
 /// some of these fields later, so not every path is read yet.
 #[allow(dead_code)]
