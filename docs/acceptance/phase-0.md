@@ -5,17 +5,17 @@
 
 ## 1. 环境检查
 
-| 项目 | 结果 |
-| --- | --- |
-| Windows | 11 Pro 10.0.26200 x64 |
-| Git | 2.54.0（user.name/user.email 已配置） |
-| Node.js | v24.19.0（来自 Python `nodejs_wheel`，见已知事项） |
-| npm | 11.17.0，registry 为 npmmirror |
-| pnpm | 12.23.0（用户级全局安装，无需管理员） |
-| Rust | 1.100.0 stable-x86_64-pc-windows-msvc |
-| Visual Studio | 2022 Community + MSVC 14.44 + Windows SDK 10.0.26100 |
-| WebView2 Runtime | 158.0.4370.33 |
-| 磁盘 | F: 可用 754GB |
+| 项目             | 结果                                                 |
+| ---------------- | ---------------------------------------------------- |
+| Windows          | 11 Pro 10.0.26200 x64                                |
+| Git              | 2.54.0（user.name/user.email 已配置）                |
+| Node.js          | v24.19.0（来自 Python `nodejs_wheel`，见已知事项）   |
+| npm              | 11.17.0，registry 为 npmmirror                       |
+| pnpm             | 12.23.0（用户级全局安装，无需管理员）                |
+| Rust             | 1.100.0 stable-x86_64-pc-windows-msvc                |
+| Visual Studio    | 2022 Community + MSVC 14.44 + Windows SDK 10.0.26100 |
+| WebView2 Runtime | 158.0.4370.33                                        |
+| 磁盘             | F: 可用 754GB                                        |
 
 ## 2. 完成内容
 
@@ -32,27 +32,27 @@
 
 ## 3. 提交记录
 
-| 提交 | 说明 |
-| --- | --- |
-| `c38e584` | chore(repo): 初始化仓库 |
+| 提交      | 说明                                           |
+| --------- | ---------------------------------------------- |
+| `c38e584` | chore(repo): 初始化仓库                        |
 | `b4f5263` | chore: Tauri 2 + React 19 + TS 6 + Vite 8 基线 |
-| `59df1c8` | build(ts): 路径别名与严格配置 |
-| `33ea667` | build(lint): ESLint + Prettier + 质量脚本 |
-| `33562ed` | build(tailwind): Tailwind v4 与深色 token |
-| `7507357` | feat(ui): shadcn/ui 初始化 + Button |
-| `ec0aa06` | chore(tauri): 产品元信息与深色窗口 |
-| `9b0eacd` | fix(tauri): 修正 bundle identifier |
+| `59df1c8` | build(ts): 路径别名与严格配置                  |
+| `33ea667` | build(lint): ESLint + Prettier + 质量脚本      |
+| `33562ed` | build(tailwind): Tailwind v4 与深色 token      |
+| `7507357` | feat(ui): shadcn/ui 初始化 + Button            |
+| `ec0aa06` | chore(tauri): 产品元信息与深色窗口             |
+| `9b0eacd` | fix(tauri): 修正 bundle identifier             |
 
 ## 4. 验收结果
 
-| 检查 | 结果 |
-| --- | --- |
-| `pnpm check`（typecheck → lint → format:check → build） | 通过 |
-| `cargo fmt --check` | 通过 |
-| `cargo clippy --all-targets -- -D warnings` | 通过 |
-| `cargo test` | 通过（当前 0 个测试） |
-| `pnpm tauri build --debug --no-bundle` | 通过，产物 `src-tauri/target/debug/anishelf.exe` |
-| `pnpm tauri dev` 窗口 | 用户目视确认：标题 AniShelf、约 1280×800、深色界面 |
+| 检查                                                    | 结果                                               |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `pnpm check`（typecheck → lint → format:check → build） | 通过                                               |
+| `cargo fmt --check`                                     | 通过                                               |
+| `cargo clippy --all-targets -- -D warnings`             | 通过                                               |
+| `cargo test`                                            | 通过（当前 0 个测试）                              |
+| `pnpm tauri build --debug --no-bundle`                  | 通过，产物 `src-tauri/target/debug/anishelf.exe`   |
+| `pnpm tauri dev` 窗口                                   | 用户目视确认：标题 AniShelf、约 1280×800、深色界面 |
 
 > 阶段 0 仅验证工程壳；窗口内容为 Tauri 官方模板，属预期。AniShelf 实际界面在阶段 1 实现。
 
