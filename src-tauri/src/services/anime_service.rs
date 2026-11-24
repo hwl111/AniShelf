@@ -500,10 +500,32 @@ mod tests {
         let listed = list(&pool, &AnimeFilter::default()).await.expect("list");
         assert!(listed[0].is_favorite);
 
+        let favorites = list(
+            &pool,
+            &AnimeFilter {
+                favorite: Some(true),
+                ..AnimeFilter::default()
+            },
+        )
+        .await
+        .expect("favorites");
+        assert_eq!(favorites.len(), 1);
+
         let unfavorited = set_favorite(&pool, anime.id, false)
             .await
             .expect("unfavorite");
         assert!(!unfavorited.is_favorite);
+
+        let favorites = list(
+            &pool,
+            &AnimeFilter {
+                favorite: Some(true),
+                ..AnimeFilter::default()
+            },
+        )
+        .await
+        .expect("favorites after unfavorite");
+        assert!(favorites.is_empty());
     }
 
     #[tokio::test]

@@ -111,6 +111,18 @@ pub async fn list(pool: &SqlitePool, filter: &NoteFilter) -> Result<Vec<NoteRow>
             .push(")");
     }
 
+    match filter.favorite {
+        Some(true) => {
+            query.push(" AND n.id IN (SELECT entity_id FROM favorites WHERE entity_type = 'note')");
+        }
+        Some(false) => {
+            query.push(
+                " AND n.id NOT IN (SELECT entity_id FROM favorites WHERE entity_type = 'note')",
+            );
+        }
+        None => {}
+    }
+
     if let (Some(target_type), Some(target_id)) =
         (filter.relation_type.as_deref(), filter.relation_id)
     {
@@ -198,6 +210,46 @@ pub async fn set_tags(
         .bind(now)
         .execute(&mut *connection)
         .await?;
+    }
+
+    Ok(())
+}
+
+pub async fn favorite_ids(pool: &SqlitePool) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar("SELECT entity_id FROM favorites WHERE entity_type = 'note'")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn is_favorite(pool: &SqlitePool, note_id: i64) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM favorites WHERE entity_type = 'note' AND entity_id = ?)",
+    )
+    .bind(note_id)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn set_favorite(
+    connection: &mut SqliteConnection,
+    note_id: i64,
+    favorite: bool,
+    now: i64,
+) -> Result<(), sqlx::Error> {
+    if favorite {
+        sqlx::query(
+            "INSERT OR IGNORE INTO favorites (entity_type, entity_id, created_at)
+             VALUES ('note', ?, ?)",
+        )
+        .bind(note_id)
+        .bind(now)
+        .execute(&mut *connection)
+        .await?;
+    } else {
+        sqlx::query("DELETE FROM favorites WHERE entity_type = 'note' AND entity_id = ?")
+            .bind(note_id)
+            .execute(&mut *connection)
+            .await?;
     }
 
     Ok(())

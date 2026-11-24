@@ -3,12 +3,16 @@ use sqlx::SqlitePool;
 use crate::error::AppError;
 use crate::utils::escape_like;
 
+const MAX_QUERY_CHARS: usize = 200;
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub entity_type: String,
     pub id: i64,
     pub title: String,
+    pub subtitle: String,
+    pub parent_id: Option<i64>,
 }
 
 pub async fn search(
@@ -20,8 +24,13 @@ pub async fn search(
     if query.is_empty() {
         return Ok(Vec::new());
     }
+    if query.chars().count() > MAX_QUERY_CHARS {
+        return Err(AppError::Validation(format!(
+            "搜索关键词不能超过 {MAX_QUERY_CHARS} 个字符"
+        )));
+    }
 
-    let limit = limit.clamp(1, 100) as i64;
+    let limit = limit.clamp(1, 50) as i64;
     let mut results = Vec::new();
 
     if query.chars().count() >= 3 {
@@ -40,7 +49,6 @@ pub async fn search(
         results.extend(search_annotations_like(pool, &pattern, limit).await?);
     }
 
-    results.truncate(limit as usize);
     Ok(results)
 }
 
@@ -53,8 +61,10 @@ async fn search_anime_fts(
     match_query: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT rowid, title FROM anime_fts
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT rowid, title,
+                COALESCE(NULLIF(original_title, ''), substr(summary, 1, 80), '')
+         FROM anime_fts
          WHERE anime_fts MATCH ?
          ORDER BY bm25(anime_fts)
          LIMIT ?",
@@ -66,10 +76,12 @@ async fn search_anime_fts(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "anime".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -79,8 +91,10 @@ async fn search_books_fts(
     match_query: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT rowid, title FROM books_fts
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT rowid, title,
+                COALESCE(NULLIF(author, ''), substr(description, 1, 80), '')
+         FROM books_fts
          WHERE books_fts MATCH ?
          ORDER BY bm25(books_fts)
          LIMIT ?",
@@ -92,10 +106,12 @@ async fn search_books_fts(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "book".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -105,8 +121,10 @@ async fn search_notes_fts(
     match_query: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT rowid, COALESCE(NULLIF(title, ''), substr(content_md, 1, 40), '无标题笔记')
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT rowid,
+                COALESCE(NULLIF(title, ''), substr(content_md, 1, 40), '无标题笔记'),
+                COALESCE(substr(replace(content_md, char(10), ' '), 1, 80), '')
          FROM notes_fts
          WHERE notes_fts MATCH ?
          ORDER BY bm25(notes_fts)
@@ -119,10 +137,12 @@ async fn search_notes_fts(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "note".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -132,9 +152,15 @@ async fn search_annotations_fts(
     match_query: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT rowid, COALESCE(NULLIF(selected_text, ''), NULLIF(note, ''), '批注')
+    let rows: Vec<(i64, String, String, i64)> = sqlx::query_as(
+        "SELECT annotations_fts.rowid,
+                COALESCE(NULLIF(annotations_fts.selected_text, ''),
+                         NULLIF(annotations_fts.note, ''), '批注'),
+                COALESCE(b.title, ''),
+                a.book_id
          FROM annotations_fts
+         JOIN annotations a ON a.id = annotations_fts.rowid
+         JOIN books b ON b.id = a.book_id
          WHERE annotations_fts MATCH ?
          ORDER BY bm25(annotations_fts)
          LIMIT ?",
@@ -146,10 +172,12 @@ async fn search_annotations_fts(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle, book_id)| SearchResult {
             entity_type: "annotation".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: Some(book_id),
         })
         .collect())
 }
@@ -159,8 +187,9 @@ async fn search_anime_like(
     pattern: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT id, title FROM anime
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT id, title, COALESCE(NULLIF(original_title, ''), substr(summary, 1, 80), '')
+         FROM anime
          WHERE title LIKE ? ESCAPE '\\'
             OR original_title LIKE ? ESCAPE '\\'
             OR aliases_json LIKE ? ESCAPE '\\'
@@ -178,10 +207,12 @@ async fn search_anime_like(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "anime".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -191,8 +222,9 @@ async fn search_books_like(
     pattern: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT id, title FROM books
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT id, title, COALESCE(NULLIF(author, ''), substr(description, 1, 80), '')
+         FROM books
          WHERE title LIKE ? ESCAPE '\\'
             OR author LIKE ? ESCAPE '\\'
             OR description LIKE ? ESCAPE '\\'
@@ -208,10 +240,12 @@ async fn search_books_like(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "book".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -221,8 +255,10 @@ async fn search_notes_like(
     pattern: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT id, COALESCE(NULLIF(title, ''), substr(content_md, 1, 40), '无标题笔记')
+    let rows: Vec<(i64, String, String)> = sqlx::query_as(
+        "SELECT id,
+                COALESCE(NULLIF(title, ''), substr(content_md, 1, 40), '无标题笔记'),
+                COALESCE(substr(replace(content_md, char(10), ' '), 1, 80), '')
          FROM notes
          WHERE title LIKE ? ESCAPE '\\'
             OR content_md LIKE ? ESCAPE '\\'
@@ -237,10 +273,12 @@ async fn search_notes_like(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle)| SearchResult {
             entity_type: "note".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: None,
         })
         .collect())
 }
@@ -250,12 +288,16 @@ async fn search_annotations_like(
     pattern: &str,
     limit: i64,
 ) -> Result<Vec<SearchResult>, AppError> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT id, COALESCE(NULLIF(selected_text, ''), NULLIF(note, ''), '批注')
-         FROM annotations
-         WHERE selected_text LIKE ? ESCAPE '\\'
-            OR note LIKE ? ESCAPE '\\'
-         ORDER BY updated_at DESC
+    let rows: Vec<(i64, String, String, i64)> = sqlx::query_as(
+        "SELECT a.id,
+                COALESCE(NULLIF(a.selected_text, ''), NULLIF(a.note, ''), '批注'),
+                COALESCE(b.title, ''),
+                a.book_id
+         FROM annotations a
+         JOIN books b ON b.id = a.book_id
+         WHERE a.selected_text LIKE ? ESCAPE '\\'
+            OR a.note LIKE ? ESCAPE '\\'
+         ORDER BY a.updated_at DESC
          LIMIT ?",
     )
     .bind(pattern)
@@ -266,10 +308,12 @@ async fn search_annotations_like(
 
     Ok(rows
         .into_iter()
-        .map(|(id, title)| SearchResult {
+        .map(|(id, title, subtitle, book_id)| SearchResult {
             entity_type: "annotation".to_string(),
             id,
             title,
+            subtitle,
+            parent_id: Some(book_id),
         })
         .collect())
 }
@@ -403,6 +447,11 @@ mod tests {
 
         let book_hit = search(&pool, "计算机系统", 20).await.expect("book search");
         assert!(has(&book_hit, "book", book_id));
+        let book_result = book_hit
+            .iter()
+            .find(|result| result.entity_type == "book" && result.id == book_id)
+            .expect("book result");
+        assert_eq!(book_result.subtitle, "Randal E. Bryant");
 
         let note_hit = search(&pool, "内存管理", 20).await.expect("note search");
         assert!(has(&note_hit, "note", note_id));
@@ -411,6 +460,12 @@ mod tests {
             .await
             .expect("annotation search");
         assert!(has(&annotation_hit, "annotation", annotation_id));
+        let annotation_result = annotation_hit
+            .iter()
+            .find(|result| result.entity_type == "annotation" && result.id == annotation_id)
+            .expect("annotation result");
+        assert_eq!(annotation_result.parent_id, Some(book_id));
+        assert_eq!(annotation_result.subtitle, "深入理解计算机系统");
 
         let author_hit = search(&pool, "randal", 20).await.expect("author search");
         assert!(has(&author_hit, "book", book_id));
@@ -428,6 +483,14 @@ mod tests {
 
         let underscore = search(&pool, "_", 20).await.expect("underscore query");
         assert!(underscore.is_empty());
+    }
+
+    #[tokio::test]
+    async fn query_length_is_validated() {
+        let (_dir, pool) = migrated_pool().await;
+        let long_query = "字".repeat(MAX_QUERY_CHARS + 1);
+        let result = search(&pool, &long_query, 20).await;
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[tokio::test]

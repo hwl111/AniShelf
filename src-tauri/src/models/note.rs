@@ -23,6 +23,7 @@ pub struct NoteSummary {
     pub created_at: i64,
     pub updated_at: i64,
     pub tags: Vec<Tag>,
+    pub is_favorite: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -34,6 +35,7 @@ pub struct Note {
     pub created_at: i64,
     pub updated_at: i64,
     pub tags: Vec<Tag>,
+    pub is_favorite: bool,
     pub relations: Vec<NoteRelation>,
     pub links: Vec<NoteLink>,
     pub backlinks: Vec<NoteLink>,
@@ -114,6 +116,8 @@ pub struct NoteFilter {
     pub query: Option<String>,
     #[serde(default)]
     pub tag_id: Option<i64>,
+    #[serde(default)]
+    pub favorite: Option<bool>,
     #[serde(default)]
     pub relation_type: Option<String>,
     #[serde(default)]

@@ -31,6 +31,18 @@ pub async fn list(pool: &SqlitePool, filter: &AnimeFilter) -> Result<Vec<AnimeRo
             .push_bind(tag_id)
             .push(")");
     }
+    match filter.favorite {
+        Some(true) => {
+            query
+                .push(" AND a.id IN (SELECT entity_id FROM favorites WHERE entity_type = 'anime')");
+        }
+        Some(false) => {
+            query.push(
+                " AND a.id NOT IN (SELECT entity_id FROM favorites WHERE entity_type = 'anime')",
+            );
+        }
+        None => {}
+    }
 
     match filter.sort.as_deref().unwrap_or("updated_desc") {
         "created_desc" => {

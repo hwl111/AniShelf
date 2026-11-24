@@ -21,6 +21,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::system::get_database_status,
+            commands::dashboard::get_dashboard,
             commands::search::search_all,
             commands::anime::list_anime,
             commands::anime::get_anime,
@@ -58,6 +59,7 @@ pub fn run() {
             commands::note::create_note,
             commands::note::update_note,
             commands::note::delete_note,
+            commands::note::set_note_favorite,
             commands::note::get_note_delete_impact,
             commands::note::get_note_relation_impact,
             commands::note::list_note_link_candidates,

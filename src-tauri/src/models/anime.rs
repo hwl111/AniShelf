@@ -108,5 +108,7 @@ pub struct AnimeFilter {
     #[serde(default)]
     pub tag_id: Option<i64>,
     #[serde(default)]
+    pub favorite: Option<bool>,
+    #[serde(default)]
     pub sort: Option<String>,
 }

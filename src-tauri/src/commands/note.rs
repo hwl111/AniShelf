@@ -41,6 +41,15 @@ pub async fn delete_note(state: State<'_, AppState>, id: i64, force: bool) -> Re
 }
 
 #[tauri::command]
+pub async fn set_note_favorite(
+    state: State<'_, AppState>,
+    id: i64,
+    favorite: bool,
+) -> Result<Note, AppError> {
+    note_service::set_favorite(&state.pool, id, favorite).await
+}
+
+#[tauri::command]
 pub async fn get_note_delete_impact(
     state: State<'_, AppState>,
     id: i64,

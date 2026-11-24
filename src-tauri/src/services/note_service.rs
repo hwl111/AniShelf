@@ -23,6 +23,7 @@ pub async fn list(pool: &SqlitePool, filter: &NoteFilter) -> Result<Vec<NoteSumm
     let rows = repository::list(pool, &filter).await?;
     let ids: Vec<i64> = rows.iter().map(|row| row.id).collect();
     let all_tags = repository::tags_for_many(pool, &ids).await?;
+    let favorite_ids: HashSet<i64> = repository::favorite_ids(pool).await?.into_iter().collect();
 
     let mut tags_by_note: HashMap<i64, Vec<Tag>> = HashMap::new();
     for (note_id, id, name, color) in all_tags {
@@ -41,6 +42,7 @@ pub async fn list(pool: &SqlitePool, filter: &NoteFilter) -> Result<Vec<NoteSumm
             created_at: row.created_at,
             updated_at: row.updated_at,
             tags: tags_by_note.remove(&row.id).unwrap_or_default(),
+            is_favorite: favorite_ids.contains(&row.id),
         })
         .collect())
 }
@@ -54,6 +56,7 @@ pub async fn get(pool: &SqlitePool, id: i64) -> Result<Note, AppError> {
     drop(connection);
 
     let tags = repository::tags_for(pool, id).await?;
+    let is_favorite = repository::is_favorite(pool, id).await?;
     let links = repository::outgoing_links(pool, id).await?;
     let backlinks = repository::backlinks(pool, id).await?;
     let relations = resolve_relations(pool, relation_rows).await?;
@@ -65,6 +68,7 @@ pub async fn get(pool: &SqlitePool, id: i64) -> Result<Note, AppError> {
         created_at: row.created_at,
         updated_at: row.updated_at,
         tags,
+        is_favorite,
         relations,
         links,
         backlinks,
@@ -108,6 +112,19 @@ pub async fn update(pool: &SqlitePool, id: i64, input: NoteInput) -> Result<Note
     )
     .await?;
     repository::set_tags(&mut transaction, id, &normalized.tags, now).await?;
+    transaction.commit().await?;
+
+    get(pool, id).await
+}
+
+pub async fn set_favorite(pool: &SqlitePool, id: i64, favorite: bool) -> Result<Note, AppError> {
+    let now = now_ms();
+    let mut transaction = pool.begin().await?;
+    let existing = repository::get_row(&mut transaction, id).await?;
+    if existing.is_none() {
+        return Err(AppError::NotFound(format!("笔记 {id} 不存在")));
+    }
+    repository::set_favorite(&mut transaction, id, favorite, now).await?;
     transaction.commit().await?;
 
     get(pool, id).await
@@ -647,6 +664,51 @@ mod tests {
         delete(&pool, created.id, false).await.expect("delete");
         assert_eq!(count(&pool, "notes").await, 0);
         assert_eq!(count(&pool, "entity_tags").await, 0);
+    }
+
+    #[tokio::test]
+    async fn note_favorites_round_trip_and_filter() {
+        let (_dir, pool) = migrated_pool().await;
+
+        let first = create(&pool, input("收藏笔记", "正文", &[]))
+            .await
+            .expect("first");
+        create(&pool, input("普通笔记", "正文", &[]))
+            .await
+            .expect("second");
+
+        let favorited = set_favorite(&pool, first.id, true).await.expect("favorite");
+        assert!(favorited.is_favorite);
+
+        let favorites = list(
+            &pool,
+            &NoteFilter {
+                favorite: Some(true),
+                ..NoteFilter::default()
+            },
+        )
+        .await
+        .expect("favorites");
+        assert_eq!(favorites.len(), 1);
+        assert_eq!(favorites[0].id, first.id);
+        assert!(favorites[0].is_favorite);
+
+        let non_favorites = list(
+            &pool,
+            &NoteFilter {
+                favorite: Some(false),
+                ..NoteFilter::default()
+            },
+        )
+        .await
+        .expect("non favorites");
+        assert_eq!(non_favorites.len(), 1);
+
+        let unfavorited = set_favorite(&pool, first.id, false)
+            .await
+            .expect("unfavorite");
+        assert!(!unfavorited.is_favorite);
+        assert_eq!(count(&pool, "favorites").await, 0);
     }
 
     #[tokio::test]
