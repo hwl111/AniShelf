@@ -14,6 +14,9 @@ pub enum AppError {
     #[error("参数校验失败：{0}")]
     Validation(String),
 
+    #[error("{0}")]
+    External(String),
+
     #[error("内部错误：{0}")]
     Internal(String),
 }

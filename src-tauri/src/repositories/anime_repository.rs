@@ -1,7 +1,7 @@
 use sqlx::query_as;
 use sqlx::{QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
 
-use crate::models::anime::{AnimeFilter, AnimeInput, AnimeRow};
+use crate::models::anime::{AnimeFilter, AnimeInput, AnimeRow, ExternalAnimeFields};
 use crate::models::tag::Tag;
 
 const ANIME_SELECT: &str = "SELECT a.id, a.bangumi_subject_id, a.title, a.original_title,
@@ -131,6 +131,47 @@ pub async fn delete(connection: &mut SqliteConnection, id: i64) -> Result<(), sq
         .bind(id)
         .execute(&mut *connection)
         .await?;
+    Ok(())
+}
+
+pub async fn find_id_by_bangumi_subject_id(
+    pool: &SqlitePool,
+    subject_id: i64,
+) -> Result<Option<i64>, sqlx::Error> {
+    sqlx::query_scalar("SELECT id FROM anime WHERE bangumi_subject_id = ?")
+        .bind(subject_id)
+        .fetch_optional(pool)
+        .await
+}
+
+pub async fn update_external(
+    connection: &mut SqliteConnection,
+    id: i64,
+    fields: &ExternalAnimeFields,
+    aliases_json: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE anime
+         SET bangumi_subject_id = ?, title = ?, original_title = ?, aliases_json = ?,
+             summary = ?, cover_source_url = ?, year = ?, season = ?, total_episodes = ?,
+             external_updated_at = ?, updated_at = ?
+         WHERE id = ?",
+    )
+    .bind(fields.bangumi_subject_id)
+    .bind(&fields.title)
+    .bind(fields.original_title.as_deref())
+    .bind(aliases_json)
+    .bind(&fields.summary)
+    .bind(fields.cover_source_url.as_deref())
+    .bind(fields.year)
+    .bind(fields.season.as_deref())
+    .bind(fields.total_episodes)
+    .bind(fields.updated_at)
+    .bind(fields.updated_at)
+    .bind(id)
+    .execute(&mut *connection)
+    .await?;
+
     Ok(())
 }
 

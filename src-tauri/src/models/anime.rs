@@ -84,6 +84,20 @@ pub struct AnimeInput {
     pub tags: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ExternalAnimeFields {
+    pub bangumi_subject_id: i64,
+    pub title: String,
+    pub original_title: Option<String>,
+    pub aliases: Vec<String>,
+    pub summary: String,
+    pub cover_source_url: Option<String>,
+    pub year: Option<i64>,
+    pub season: Option<String>,
+    pub total_episodes: Option<i64>,
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnimeFilter {

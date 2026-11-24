@@ -4,7 +4,8 @@ use sqlx::SqlitePool;
 
 use crate::error::AppError;
 use crate::models::anime::{
-    Anime, AnimeFilter, AnimeInput, AnimeRow, SEASONS, SORT_OPTIONS, WATCH_STATUSES,
+    Anime, AnimeFilter, AnimeInput, AnimeRow, ExternalAnimeFields, SEASONS, SORT_OPTIONS,
+    WATCH_STATUSES,
 };
 use crate::models::tag::Tag;
 use crate::repositories::anime_repository as repository;
@@ -98,6 +99,47 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> Result<(), AppError> {
     transaction.commit().await?;
 
     Ok(())
+}
+
+pub async fn create_external(
+    pool: &SqlitePool,
+    input: AnimeInput,
+    fields: ExternalAnimeFields,
+) -> Result<Anime, AppError> {
+    let input = normalize_input(input)?;
+    let input_aliases_json = aliases_json(&input.aliases)?;
+    let external_aliases_json = aliases_json(&fields.aliases)?;
+    let now = now_ms();
+
+    let mut transaction = pool.begin().await?;
+    let id = repository::insert(&mut transaction, &input, &input_aliases_json, now).await?;
+    repository::set_tags(&mut transaction, id, &input.tags, now).await?;
+    episode_repository::ensure_episodes(&mut transaction, id, input.total_episodes, now).await?;
+    repository::update_external(&mut transaction, id, &fields, &external_aliases_json).await?;
+    transaction.commit().await?;
+
+    get(pool, id).await
+}
+
+pub async fn apply_external_fields(
+    pool: &SqlitePool,
+    id: i64,
+    fields: ExternalAnimeFields,
+) -> Result<Anime, AppError> {
+    let external_aliases_json = aliases_json(&fields.aliases)?;
+
+    let mut transaction = pool.begin().await?;
+    let existing = repository::get_row(&mut transaction, id).await?;
+    if existing.is_none() {
+        return Err(AppError::NotFound(format!("番剧 {id} 不存在")));
+    }
+
+    repository::update_external(&mut transaction, id, &fields, &external_aliases_json).await?;
+    episode_repository::ensure_episodes(&mut transaction, id, fields.total_episodes, now_ms())
+        .await?;
+    transaction.commit().await?;
+
+    get(pool, id).await
 }
 
 pub async fn set_favorite(pool: &SqlitePool, id: i64, favorite: bool) -> Result<Anime, AppError> {

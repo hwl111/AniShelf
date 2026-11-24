@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod error;
+mod integrations;
 mod models;
 mod repositories;
 mod services;
@@ -35,7 +36,14 @@ pub fn run() {
             commands::episode::list_watch_records,
             commands::episode::add_watch_record,
             commands::episode::update_watch_record,
-            commands::episode::delete_watch_record
+            commands::episode::delete_watch_record,
+            commands::bangumi::search_bangumi,
+            commands::bangumi::import_bangumi_subject,
+            commands::bangumi::preview_bangumi_refresh,
+            commands::bangumi::apply_bangumi_refresh,
+            commands::bangumi::get_bangumi_token_status,
+            commands::bangumi::set_bangumi_token,
+            commands::bangumi::check_bangumi_connection
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
