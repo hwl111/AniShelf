@@ -1,0 +1,15 @@
+# Normalize line endings: keep text files LF in repository and working tree.
+* text=auto eol=lf
+*.sql text eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary

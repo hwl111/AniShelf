@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Runtime data (SQLite database, app-managed data directories)
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+database/
+backups/
+covers/
+attachments/
+cache/
+logs/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local tool settings
+.claude/settings.local.json
+
+# Editor / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
