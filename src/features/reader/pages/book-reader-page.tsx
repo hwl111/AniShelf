@@ -9,6 +9,7 @@ import { useBook } from "@/features/books/queries";
 
 import { EpubReaderPage } from "./epub-reader-page";
 import { PdfReaderPage } from "./pdf-reader-page";
+import { TxtReaderPage } from "./txt-reader-page";
 
 export function BookReaderPage() {
   const params = useParams();
@@ -54,6 +55,10 @@ export function BookReaderPage() {
 
   if (bookQuery.data.format === "pdf") {
     return <PdfReaderPage />;
+  }
+
+  if (bookQuery.data.format === "txt") {
+    return <TxtReaderPage />;
   }
 
   return (

@@ -6,10 +6,30 @@ import type {
   ProgressInput,
   ReaderSettings,
   ReadingProgress,
+  TextBookInfo,
+  TextChunk,
 } from "./types";
 
 export function readBookBytes(bookId: number): Promise<ArrayBuffer> {
   return invokeCommand<ArrayBuffer>("read_book_bytes", { bookId });
+}
+
+export function getTextBookInfo(bookId: number): Promise<TextBookInfo> {
+  return invokeCommand<TextBookInfo>("get_text_book_info", { bookId });
+}
+
+export function readTextChunk(
+  bookId: number,
+  offset: number,
+  maxBytes: number,
+  encoding: string,
+): Promise<TextChunk> {
+  return invokeCommand<TextChunk>("read_text_chunk", {
+    bookId,
+    offset,
+    maxBytes,
+    encoding,
+  });
 }
 
 export function getReadingProgress(bookId: number): Promise<ReadingProgress | null> {

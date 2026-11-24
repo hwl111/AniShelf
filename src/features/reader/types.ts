@@ -40,3 +40,20 @@ export interface BookmarkInput {
   locationJson: string;
   label: string;
 }
+
+export interface TextBookInfo {
+  bookId: number;
+  totalBytes: number;
+  encoding: string;
+  hasBom: boolean;
+  warning: string | null;
+}
+
+export interface TextChunk {
+  text: string;
+  startOffset: number;
+  nextOffset: number;
+  totalBytes: number;
+  eof: boolean;
+  hadErrors: boolean;
+}

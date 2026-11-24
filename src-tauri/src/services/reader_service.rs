@@ -500,13 +500,36 @@ fn read_text_chunk_blocking(
         });
     }
 
+    // Progress and bookmarks may store a byte offset estimated from the
+    // scroll position. Move forward to the next line boundary so decoding
+    // never starts in the middle of a multi-byte character or a line.
+    let mut skip = 0usize;
+    if offset > 0 {
+        let mut previous = [0u8; 1];
+        file.seek(SeekFrom::Start(offset as u64 - 1))
+            .map_err(map_io_error)?;
+        let previous_byte = file.read_exact(&mut previous).ok().map(|()| previous[0]);
+
+        let newline_index = if previous_byte != Some(b'\n') {
+            buffer.iter().position(|byte| *byte == b'\n')
+        } else {
+            None
+        };
+
+        if let Some(index) = newline_index {
+            skip = (index + 1).min(buffer.len() - 1);
+        }
+    }
+
+    let start_offset = offset + skip as i64;
+    let buffer = &buffer[skip..];
     let read = buffer.len();
-    let bom_len = if offset == 0 && buffer.starts_with(&[0xEF, 0xBB, 0xBF]) {
+    let bom_len = if start_offset == 0 && buffer.starts_with(&[0xEF, 0xBB, 0xBF]) {
         3
     } else {
         0
     };
-    let at_eof = offset + read as i64 >= total_bytes;
+    let at_eof = start_offset + read as i64 >= total_bytes;
     let search_limit = read.min(max_bytes);
 
     let cut = if at_eof {
@@ -533,11 +556,11 @@ fn read_text_chunk_blocking(
     }
 
     let (decoded, _, had_errors) = encoding.decode(&buffer[bom_len..cut]);
-    let next_offset = offset + cut as i64;
+    let next_offset = start_offset + cut as i64;
 
     Ok(TextChunk {
         text: decoded.into_owned(),
-        start_offset: offset + bom_len as i64,
+        start_offset: start_offset + bom_len as i64,
         next_offset,
         total_bytes,
         eof: next_offset >= total_bytes,
@@ -914,6 +937,39 @@ mod tests {
         }
 
         assert_eq!(combined, content);
+    }
+
+    #[tokio::test]
+    async fn text_chunk_aligns_arbitrary_offsets_to_line_boundaries() {
+        let (dir, pool) = setup().await;
+        let first_line = "第一行内容\n";
+        let second_line = "第二行中文内容\n";
+        let content = format!("{first_line}{second_line}第三行内容\n");
+        let book_id =
+            insert_book_with_bytes(&pool, dir.path(), "txt", content.as_bytes(), "align").await;
+
+        let info = get_text_book_info(&pool, book_id).await.expect("info");
+        let middle_offset = (first_line.len() / 2) as i64;
+        let aligned = read_text_chunk(&pool, book_id, middle_offset, 4096, &info.encoding)
+            .await
+            .expect("aligned chunk");
+
+        assert_eq!(aligned.start_offset, first_line.len() as i64);
+        assert_eq!(aligned.text, format!("{second_line}第三行内容\n"));
+        assert!(!aligned.text.contains('\u{FFFD}'));
+        assert!(aligned.eof);
+
+        let line_start = read_text_chunk(
+            &pool,
+            book_id,
+            first_line.len() as i64,
+            4096,
+            &info.encoding,
+        )
+        .await
+        .expect("line start chunk");
+        assert_eq!(line_start.start_offset, first_line.len() as i64);
+        assert_eq!(line_start.text, format!("{second_line}第三行内容\n"));
     }
 
     #[tokio::test]

@@ -8,6 +8,7 @@ export const readerKeys = {
   progress: (bookId: number) => ["reader", "progress", bookId] as const,
   bookmarks: (bookId: number) => ["reader", "bookmarks", bookId] as const,
   settings: (scope: string) => ["reader", "settings", scope] as const,
+  textInfo: (bookId: number) => ["reader", "text-info", bookId] as const,
 };
 
 function errorMessage(error: unknown): string {
@@ -36,6 +37,15 @@ export function useReaderSettings(scope: string) {
   return useQuery({
     queryKey: readerKeys.settings(scope),
     queryFn: () => api.getReaderSettings(scope),
+  });
+}
+
+export function useTextBookInfo(bookId: number) {
+  return useQuery({
+    queryKey: readerKeys.textInfo(bookId),
+    queryFn: () => api.getTextBookInfo(bookId),
+    enabled: Number.isInteger(bookId) && bookId > 0,
+    staleTime: 5 * 60_000,
   });
 }
 
