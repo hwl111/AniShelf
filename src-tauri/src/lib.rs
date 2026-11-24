@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod error;
+mod services;
 
 use tauri::Manager;
 
@@ -14,7 +15,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::system::get_database_status
+            commands::system::get_database_status,
+            commands::search::search_all
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
