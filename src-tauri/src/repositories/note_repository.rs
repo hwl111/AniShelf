@@ -370,6 +370,54 @@ pub async fn relation_count(pool: &SqlitePool, note_id: i64) -> Result<i64, sqlx
         .await
 }
 
+pub async fn relation_impact_notes(
+    pool: &SqlitePool,
+    target_type: &str,
+    target_id: i64,
+) -> Result<Vec<NoteLink>, sqlx::Error> {
+    let sql = match target_type {
+        "anime" => {
+            "SELECT DISTINCT n.id AS note_id,
+                    COALESCE(NULLIF(n.title, ''), '无标题笔记') AS title, n.updated_at
+             FROM note_relations r
+             JOIN notes n ON n.id = r.note_id
+             WHERE (r.target_type = 'anime' AND r.target_id = ?)
+                OR (r.target_type = 'episode'
+                    AND r.target_id IN (SELECT id FROM anime_episodes WHERE anime_id = ?))
+                OR (r.target_type = 'watch_record'
+                    AND r.target_id IN (SELECT id FROM watch_records WHERE anime_id = ?))
+             ORDER BY n.updated_at DESC, n.id DESC"
+        }
+        "book" => {
+            "SELECT DISTINCT n.id AS note_id,
+                    COALESCE(NULLIF(n.title, ''), '无标题笔记') AS title, n.updated_at
+             FROM note_relations r
+             JOIN notes n ON n.id = r.note_id
+             WHERE (r.target_type = 'book' AND r.target_id = ?)
+                OR (r.target_type = 'annotation'
+                    AND r.target_id IN (SELECT id FROM annotations WHERE book_id = ?))
+             ORDER BY n.updated_at DESC, n.id DESC"
+        }
+        _ => {
+            "SELECT DISTINCT n.id AS note_id,
+                    COALESCE(NULLIF(n.title, ''), '无标题笔记') AS title, n.updated_at
+             FROM note_relations r
+             JOIN notes n ON n.id = r.note_id
+             WHERE r.target_type = 'episode' AND r.target_id = ?
+             ORDER BY n.updated_at DESC, n.id DESC"
+        }
+    };
+
+    let query = query_as::<_, NoteLink>(sql).bind(target_id);
+    let query = if target_type == "anime" || target_type == "book" {
+        query.bind(target_id)
+    } else {
+        query
+    };
+
+    query.fetch_all(pool).await
+}
+
 pub async fn anime_candidates(
     pool: &SqlitePool,
     text: &str,

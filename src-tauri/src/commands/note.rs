@@ -4,7 +4,7 @@ use crate::db::AppState;
 use crate::error::AppError;
 use crate::models::note::{
     Note, NoteDeleteImpact, NoteFilter, NoteInput, NoteLinkCandidate, NoteRelationCandidate,
-    NoteSummary,
+    NoteRelationImpact, NoteSummary,
 };
 use crate::services::note_service;
 
@@ -46,6 +46,15 @@ pub async fn get_note_delete_impact(
     id: i64,
 ) -> Result<NoteDeleteImpact, AppError> {
     note_service::delete_impact(&state.pool, id).await
+}
+
+#[tauri::command]
+pub async fn get_note_relation_impact(
+    state: State<'_, AppState>,
+    target_type: String,
+    target_id: i64,
+) -> Result<NoteRelationImpact, AppError> {
+    note_service::relation_impact(&state.pool, &target_type, target_id).await
 }
 
 #[tauri::command]

@@ -5,7 +5,8 @@ use sqlx::SqlitePool;
 use crate::error::AppError;
 use crate::models::note::{
     NOTE_RELATION_TARGETS, NOTE_SORT_OPTIONS, Note, NoteDeleteImpact, NoteFilter, NoteInput,
-    NoteLinkCandidate, NoteRelation, NoteRelationCandidate, NoteRelationRow, NoteSummary,
+    NoteLinkCandidate, NoteRelation, NoteRelationCandidate, NoteRelationImpact, NoteRelationRow,
+    NoteSummary,
 };
 use crate::models::tag::Tag;
 use crate::repositories::note_repository as repository;
@@ -154,6 +155,23 @@ pub async fn delete_impact(pool: &SqlitePool, id: i64) -> Result<NoteDeleteImpac
         note_id: id,
         backlinks,
         relation_count,
+    })
+}
+
+pub async fn relation_impact(
+    pool: &SqlitePool,
+    target_type: &str,
+    target_id: i64,
+) -> Result<NoteRelationImpact, AppError> {
+    validate_relation_target(target_type)?;
+    if target_id <= 0 {
+        return Err(AppError::Validation("关联对象 ID 无效".to_string()));
+    }
+
+    let notes = repository::relation_impact_notes(pool, target_type, target_id).await?;
+    Ok(NoteRelationImpact {
+        count: notes.len() as i64,
+        notes,
     })
 }
 
@@ -937,5 +955,46 @@ mod tests {
         assert_eq!(episode_candidates.len(), 1);
         assert_eq!(episode_candidates[0].title, "第 1 集 · 第一话");
         assert_eq!(episode_candidates[0].subtitle, "孤独摇滚");
+    }
+
+    #[tokio::test]
+    async fn relation_impact_reports_notes_for_entity_deletion() {
+        let (_dir, pool) = migrated_pool().await;
+
+        let anime_id = insert_anime(&pool, "示例番剧").await;
+        let episode_id = insert_episode(&pool, anime_id, 1, "第一话").await;
+        let book_id = insert_book(&pool, "示例书籍", "作者").await;
+        let note = create(&pool, input("受影响的笔记", "正文", &[]))
+            .await
+            .expect("note");
+
+        add_relation(&pool, note.id, "anime", anime_id)
+            .await
+            .expect("anime relation");
+        add_relation(&pool, note.id, "episode", episode_id)
+            .await
+            .expect("episode relation");
+        add_relation(&pool, note.id, "book", book_id)
+            .await
+            .expect("book relation");
+
+        let anime_impact = relation_impact(&pool, "anime", anime_id)
+            .await
+            .expect("anime impact");
+        assert_eq!(anime_impact.count, 1);
+        assert_eq!(anime_impact.notes[0].note_id, note.id);
+
+        let episode_impact = relation_impact(&pool, "episode", episode_id)
+            .await
+            .expect("episode impact");
+        assert_eq!(episode_impact.count, 1);
+
+        let book_impact = relation_impact(&pool, "book", book_id)
+            .await
+            .expect("book impact");
+        assert_eq!(book_impact.count, 1);
+
+        let invalid = relation_impact(&pool, "movie", 1).await;
+        assert!(matches!(invalid, Err(AppError::Validation(_))));
     }
 }

@@ -59,6 +59,7 @@ pub fn run() {
             commands::note::update_note,
             commands::note::delete_note,
             commands::note::get_note_delete_impact,
+            commands::note::get_note_relation_impact,
             commands::note::list_note_link_candidates,
             commands::note::add_note_link,
             commands::note::remove_note_link,

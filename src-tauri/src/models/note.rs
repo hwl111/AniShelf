@@ -67,6 +67,13 @@ pub struct NoteDeleteImpact {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NoteRelationImpact {
+    pub count: i64,
+    pub notes: Vec<NoteLink>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoteLinkCandidate {
     pub id: i64,
     pub title: String,
