@@ -27,5 +27,12 @@ export const navigationItems: NavigationItem[] = [
 ];
 
 export function findNavigationItem(pathname: string): NavigationItem | undefined {
-  return navigationItems.find((item) => item.path === pathname);
+  const exact = navigationItems.find((item) => item.path === pathname);
+  if (exact) {
+    return exact;
+  }
+
+  return navigationItems
+    .filter((item) => item.path !== "/" && pathname.startsWith(`${item.path}/`))
+    .sort((left, right) => right.path.length - left.path.length)[0];
 }

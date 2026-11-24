@@ -27,7 +27,13 @@
     @apply border-border outline-ring/50;
   }
   html {
+    color-scheme: dark;
     @apply font-sans;
+  }
+
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
   }
 }
 

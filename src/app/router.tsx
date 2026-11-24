@@ -2,6 +2,7 @@ import { createHashRouter, type RouteObject } from "react-router";
 
 import { NotFoundPage } from "@/components/common/not-found-page";
 import { AppShell } from "@/components/layout/app-shell";
+import { AnimeDetailPage } from "@/features/anime/pages/anime-detail-page";
 import { AnimePage } from "@/features/anime/pages/anime-page";
 import { BookshelfPage } from "@/features/books/pages/bookshelf-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
@@ -20,6 +21,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "anime", element: <AnimePage /> },
+      { path: "anime/:animeId", element: <AnimeDetailPage /> },
       { path: "bookshelf", element: <BookshelfPage /> },
       { path: "reader", element: <ReaderPage /> },
       { path: "notes", element: <NotesPage /> },

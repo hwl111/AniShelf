@@ -2,10 +2,20 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "./providers";
 import { routes } from "./router";
+
+vi.mock("@/features/anime/api", () => ({
+  listAnime: vi.fn().mockResolvedValue([]),
+  listTags: vi.fn().mockResolvedValue([]),
+  getAnime: vi.fn(),
+  createAnime: vi.fn(),
+  updateAnime: vi.fn(),
+  deleteAnime: vi.fn(),
+  setAnimeFavorite: vi.fn(),
+}));
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
