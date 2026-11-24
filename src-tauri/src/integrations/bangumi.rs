@@ -12,7 +12,7 @@ static THROTTLE: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
 
 #[derive(Debug, thiserror::Error)]
 pub enum BangumiError {
-    #[error("无法连接 Bangumi，请检查网络")]
+    #[error("无法连接 Bangumi，请检查网络或代理设置")]
     Network,
     #[error("Bangumi 请求失败（HTTP {0}）")]
     Http(u16),

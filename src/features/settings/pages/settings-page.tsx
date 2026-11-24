@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Database, FolderOpen, RefreshCw, ShieldCheck } from "lucide-react";
+import { Cloud, Database, FolderOpen, RefreshCw, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
@@ -7,6 +8,12 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  useBangumiTokenStatus,
+  useCheckBangumiConnection,
+  useSetBangumiToken,
+} from "@/features/bangumi/queries";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +47,11 @@ export function SettingsPage() {
     queryKey: ["database-status"],
     queryFn: getDatabaseStatus,
   });
+
+  const [tokenInput, setTokenInput] = useState("");
+  const tokenStatus = useBangumiTokenStatus();
+  const setToken = useSetBangumiToken();
+  const checkConnection = useCheckBangumiConnection();
 
   const status = databaseStatus.data;
 
@@ -118,6 +130,81 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               数据库、封面和附件位于应用数据目录；原始书籍文件默认保留在原位置，备份数据时需要单独备份这些书籍文件。
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/40 md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Cloud className="size-4" aria-hidden="true" />
+                Bangumi
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">访问令牌</span>
+                <span
+                  className={cn(
+                    "font-medium",
+                    tokenStatus.data?.hasToken ? "text-emerald-400" : "text-muted-foreground",
+                  )}
+                >
+                  {tokenStatus.data?.hasToken ? "已配置" : "未配置（使用公开接口）"}
+                </span>
+              </div>
+
+              {tokenStatus.isError ? (
+                <p className="text-xs text-destructive">{tokenStatus.error.message}</p>
+              ) : null}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="password"
+                  placeholder={
+                    tokenStatus.data?.hasToken
+                      ? "输入新 Token 可替换；留空保存会清除"
+                      : "可选：填写 Bangumi Access Token"
+                  }
+                  value={tokenInput}
+                  onChange={(event) => setTokenInput(event.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  disabled={setToken.isPending}
+                  onClick={() =>
+                    setToken.mutate(tokenInput.trim() || null, {
+                      onSuccess: () => setTokenInput(""),
+                    })
+                  }
+                >
+                  保存 Token
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={checkConnection.isPending}
+                  onClick={() => checkConnection.mutate()}
+                >
+                  {checkConnection.isPending ? "测试中…" : "测试连接"}
+                </Button>
+                {checkConnection.data ? (
+                  <span
+                    className={cn(
+                      "text-xs",
+                      checkConnection.data.ok ? "text-emerald-400" : "text-destructive",
+                    )}
+                  >
+                    {checkConnection.data.message}
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Token 仅保存在本机数据库，不写入日志或 Git。网络不可用时仍可手动管理番剧与观看记录。
+              </p>
             </CardContent>
           </Card>
         </div>

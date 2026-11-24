@@ -1,4 +1,4 @@
-import { Plus, Star, Tv } from "lucide-react";
+import { Download, Plus, Star, Tv } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+import { BangumiImportDialog } from "@/features/bangumi/components/bangumi-import-dialog";
 
 import { AnimeFormDialog } from "../components/anime-form-dialog";
 import { selectClassName } from "../components/field-styles";
@@ -34,6 +36,7 @@ export function AnimePage() {
   const [tagFilter, setTagFilter] = useState("");
   const [sort, setSort] = useState<AnimeSort>("updated_desc");
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filter = useMemo<AnimeFilter>(() => {
     const parsedYear = yearFilter.trim() ? Number(yearFilter) : undefined;
@@ -55,10 +58,16 @@ export function AnimePage() {
         title="番剧"
         description="管理追番进度、评分与观看记录"
         actions={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="size-4" aria-hidden="true" />
-            添加番剧
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Download className="size-4" aria-hidden="true" />
+              Bangumi 导入
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="size-4" aria-hidden="true" />
+              添加番剧
+            </Button>
+          </div>
         }
       />
 
@@ -225,6 +234,14 @@ export function AnimePage() {
             );
           })}
         </div>
+      ) : null}
+
+      {importOpen ? (
+        <BangumiImportDialog
+          open
+          onOpenChange={setImportOpen}
+          onImported={(anime) => navigate(`/anime/${anime.id}`)}
+        />
       ) : null}
 
       {formOpen ? (

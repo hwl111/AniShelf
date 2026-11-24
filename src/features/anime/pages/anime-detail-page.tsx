@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+
+import { BangumiRefreshDialog } from "@/features/bangumi/components/bangumi-refresh-dialog";
 
 import { AnimeFormDialog } from "../components/anime-form-dialog";
 import { EpisodeSection } from "../components/episode-section";
@@ -53,6 +55,7 @@ export function AnimeDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [refreshOpen, setRefreshOpen] = useState(false);
 
   const anime = animeQuery.data;
 
@@ -119,6 +122,12 @@ export function AnimeDetailPage() {
               />
               {anime.isFavorite ? "已收藏" : "收藏"}
             </Button>
+            {anime.bangumiSubjectId ? (
+              <Button variant="outline" size="sm" onClick={() => setRefreshOpen(true)}>
+                <RefreshCw className="size-4" aria-hidden="true" />
+                Bangumi 刷新
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="size-4" aria-hidden="true" />
               编辑
@@ -219,6 +228,10 @@ export function AnimeDetailPage() {
       </div>
 
       <EpisodeSection anime={anime} />
+
+      {refreshOpen ? (
+        <BangumiRefreshDialog open onOpenChange={setRefreshOpen} anime={anime} />
+      ) : null}
 
       {editOpen ? (
         <AnimeFormDialog
