@@ -32,6 +32,10 @@ export function deleteNote(id: number, force: boolean): Promise<void> {
   return invokeCommand<void>("delete_note", { id, force });
 }
 
+export function setNoteFavorite(id: number, favorite: boolean): Promise<Note> {
+  return invokeCommand<Note>("set_note_favorite", { id, favorite });
+}
+
 export function getNoteDeleteImpact(id: number): Promise<NoteDeleteImpact> {
   return invokeCommand<NoteDeleteImpact>("get_note_delete_impact", { id });
 }

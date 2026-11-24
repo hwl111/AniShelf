@@ -49,6 +49,7 @@ export interface AnimeFilter {
   status?: WatchStatus;
   year?: number;
   tagId?: number;
+  favorite?: boolean;
   sort?: AnimeSort;
 }
 

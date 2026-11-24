@@ -1,4 +1,4 @@
-import { ArrowLeft, Link2, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, Link2, Plus, Save, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ import {
   useNoteDeleteImpact,
   useRemoveNoteLink,
   useRemoveNoteRelation,
+  useSetNoteFavorite,
   useUpdateNote,
 } from "../queries";
 import type { Note, NoteInput, NoteRelationType } from "../types";
@@ -114,6 +115,7 @@ function NoteEditor({ note }: NoteEditorProps) {
   const addRelationMutation = useAddNoteRelation();
   const removeRelationMutation = useRemoveNoteRelation();
   const removeLinkMutation = useRemoveNoteLink();
+  const favoriteMutation = useSetNoteFavorite();
   const deleteImpactQuery = useNoteDeleteImpact(note?.id, deleteOpen);
 
   const dirty =
@@ -241,6 +243,20 @@ function NoteEditor({ note }: NoteEditorProps) {
         }
         actions={
           <>
+            {note ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={favoriteMutation.isPending}
+                onClick={() => favoriteMutation.mutate({ id: note.id, favorite: !note.isFavorite })}
+              >
+                <Star
+                  className={note.isFavorite ? "fill-amber-300 text-amber-300" : "size-4"}
+                  aria-hidden="true"
+                />
+                {note.isFavorite ? "已收藏" : "收藏"}
+              </Button>
+            ) : null}
             {dirty ? <Badge variant="outline">未保存</Badge> : null}
             <Button onClick={handleSave} disabled={saving}>
               <Save className="size-4" aria-hidden="true" />

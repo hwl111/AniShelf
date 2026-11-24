@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Heart,
   LayoutDashboard,
   Library,
   Search,
@@ -22,6 +23,7 @@ export const navigationItems: NavigationItem[] = [
   { path: "/bookshelf", label: "书架", description: "管理本地电子书与阅读进度", icon: Library },
   { path: "/reader", label: "阅读器", description: "继续阅读或选择一本书开始", icon: BookOpen },
   { path: "/notes", label: "笔记", description: "记录想法并关联作品", icon: StickyNote },
+  { path: "/favorites", label: "收藏", description: "集中查看收藏的番剧、书籍与笔记", icon: Heart },
   { path: "/search", label: "搜索", description: "统一检索番剧、书籍与笔记", icon: Search },
   { path: "/settings", label: "设置", description: "主题、数据与备份设置", icon: Settings },
 ];

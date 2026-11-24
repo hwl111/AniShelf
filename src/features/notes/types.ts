@@ -10,6 +10,7 @@ export interface NoteSummary {
   createdAt: number;
   updatedAt: number;
   tags: Tag[];
+  isFavorite: boolean;
 }
 
 export interface NoteLink {
@@ -33,6 +34,7 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
   tags: Tag[];
+  isFavorite: boolean;
   relations: NoteRelation[];
   links: NoteLink[];
   backlinks: NoteLink[];
@@ -47,6 +49,7 @@ export interface NoteInput {
 export interface NoteFilter {
   query?: string;
   tagId?: number;
+  favorite?: boolean;
   relationType?: NoteRelationType;
   relationId?: number;
   sort?: NoteSort;

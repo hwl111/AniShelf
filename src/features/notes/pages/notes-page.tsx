@@ -1,4 +1,4 @@
-import { Plus, StickyNote } from "lucide-react";
+import { Plus, Star, StickyNote } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
@@ -41,6 +41,7 @@ export function NotesPage() {
 
   const [query, setQuery] = useState("");
   const [tagId, setTagId] = useState("");
+  const [favoriteFilter, setFavoriteFilter] = useState<"" | "true" | "false">("");
   const [sort, setSort] = useState<NoteSort>("updated_desc");
   const [visibleCount, setVisibleCount] = useState(50);
 
@@ -48,13 +49,14 @@ export function NotesPage() {
     () => ({
       query: query.trim() || undefined,
       tagId: tagId ? Number(tagId) : undefined,
+      favorite: favoriteFilter === "" ? undefined : favoriteFilter === "true",
       relationType,
       relationId,
       sort,
       limit: visibleCount,
       offset: 0,
     }),
-    [query, tagId, relationType, relationId, sort, visibleCount],
+    [query, tagId, favoriteFilter, relationType, relationId, sort, visibleCount],
   );
 
   const notesQuery = useNotes(filter);
@@ -74,7 +76,7 @@ export function NotesPage() {
       ? `/notes/new?relationType=${relationType}&relationId=${relationId}`
       : "/notes/new";
 
-  const hasFilter = Boolean(query.trim() || tagId || relationType);
+  const hasFilter = Boolean(query.trim() || tagId || favoriteFilter || relationType);
 
   function clearRelationFilter() {
     const next = new URLSearchParams(searchParams);
@@ -87,6 +89,7 @@ export function NotesPage() {
   function clearAllFilters() {
     setQuery("");
     setTagId("");
+    setFavoriteFilter("");
     setSort("updated_desc");
     setVisibleCount(50);
     if (relationType) {
@@ -129,7 +132,7 @@ export function NotesPage() {
       ) : null}
 
       <Card className="bg-card/40">
-        <CardContent className="grid gap-3 py-4 sm:grid-cols-3">
+        <CardContent className="grid gap-3 py-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1">
             <Label htmlFor="note-filter-query">搜索</Label>
             <Input
@@ -160,6 +163,23 @@ export function NotesPage() {
                   {tag.name}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="note-filter-favorite">收藏</Label>
+            <select
+              id="note-filter-favorite"
+              className={selectClassName}
+              value={favoriteFilter}
+              onChange={(event) => {
+                setFavoriteFilter(event.target.value as "" | "true" | "false");
+                setVisibleCount(50);
+              }}
+            >
+              <option value="">全部</option>
+              <option value="true">已收藏</option>
+              <option value="false">未收藏</option>
             </select>
           </div>
 
@@ -226,8 +246,11 @@ export function NotesPage() {
             <Card className="bg-card/40 transition-colors group-hover:border-ring/40">
               <CardContent className="space-y-2 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h2 className="text-base font-medium group-hover:text-primary">
+                  <h2 className="flex items-center gap-2 text-base font-medium group-hover:text-primary">
                     {note.title || "无标题笔记"}
+                    {note.isFavorite ? (
+                      <Star className="size-4 fill-amber-300 text-amber-300" aria-label="已收藏" />
+                    ) : null}
                   </h2>
                   <span className="text-xs text-muted-foreground">
                     更新于 {formatNoteTime(note.updatedAt)}

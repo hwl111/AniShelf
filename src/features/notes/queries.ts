@@ -110,6 +110,20 @@ export function useUpdateNote() {
   });
 }
 
+export function useSetNoteFavorite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, favorite }: { id: number; favorite: boolean }) =>
+      api.setNoteFavorite(id, favorite),
+    onSuccess: (note) => {
+      void queryClient.invalidateQueries({ queryKey: noteKeys.all });
+      toast.success(note.isFavorite ? "已加入收藏" : "已取消收藏");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
 export function useDeleteNote() {
   const queryClient = useQueryClient();
 
