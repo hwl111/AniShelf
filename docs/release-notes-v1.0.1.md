@@ -32,9 +32,10 @@
 
 ## 3. 构建产物
 
-- 安装包：`AniShelf_1.0.1_x64-setup.exe`
-- SHA-256：`（构建后补充）`
+- 安装包：`AniShelf_1.0.1_x64-setup.exe`（5.95 MiB）
+- SHA-256：`16e930949a59f358fae5a110aa4cdfe83d5e2eece212f2060a0e3c6b7acb6424`
 - 便携可执行文件：`src-tauri\target\release\anishelf.exe`
+- 干净数据目录验证：发布版 exe 使用全新 `ANISHELF_DATA_DIR` 启动，创建空库并应用 9 个迁移。
 
 安装包未做代码签名；正式传播前建议使用自己的代码签名证书重新构建，或在发布页提供哈希供校验。
 
