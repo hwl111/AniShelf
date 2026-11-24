@@ -7,6 +7,7 @@ import { AnimePage } from "@/features/anime/pages/anime-page";
 import { BookDetailPage } from "@/features/books/pages/book-detail-page";
 import { BookshelfPage } from "@/features/books/pages/bookshelf-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
+import { NoteEditorPage } from "@/features/notes/pages/note-editor-page";
 import { NotesPage } from "@/features/notes/pages/notes-page";
 import { BookReaderPage } from "@/features/reader/pages/book-reader-page";
 import { ReaderPage } from "@/features/reader/pages/reader-page";
@@ -29,6 +30,8 @@ export const routes: RouteObject[] = [
       { path: "reader", element: <ReaderPage /> },
       { path: "reader/:bookId", element: <BookReaderPage /> },
       { path: "notes", element: <NotesPage /> },
+      { path: "notes/new", element: <NoteEditorPage /> },
+      { path: "notes/:noteId", element: <NoteEditorPage /> },
       { path: "search", element: <SearchPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "*", element: <NotFoundPage /> },

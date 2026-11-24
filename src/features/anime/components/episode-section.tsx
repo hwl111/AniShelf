@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useNoteRelationImpact } from "@/features/notes/queries";
 import { cn } from "@/lib/utils";
 
 import {
@@ -56,6 +57,12 @@ export function EpisodeSection({ anime }: { anime: Anime }) {
   const [recordDialog, setRecordDialog] = useState<RecordDialogState>(null);
   const [unwatchTarget, setUnwatchTarget] = useState<Episode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const deleteEpisodeId = deleteTarget?.type === "episode" ? deleteTarget.episode.id : 0;
+  const episodeNoteImpact = useNoteRelationImpact(
+    "episode",
+    deleteEpisodeId,
+    deleteTarget?.type === "episode",
+  );
 
   const episodes = episodesQuery.data ?? [];
   const records = recordsQuery.data ?? [];
@@ -413,6 +420,14 @@ export function EpisodeSection({ anime }: { anime: Anime }) {
                       deleteTarget.record.watchedAt,
                     )} 的观看记录。此操作不可撤销。`}
               </DialogDescription>
+              {deleteTarget.type === "episode" &&
+              episodeNoteImpact.data &&
+              episodeNoteImpact.data.count > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  有 {episodeNoteImpact.data.count}{" "}
+                  篇笔记关联到本集，删除后这些关联会被移除，笔记本身保留。
+                </p>
+              ) : null}
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteTarget(null)}>

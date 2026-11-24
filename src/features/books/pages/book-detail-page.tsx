@@ -20,6 +20,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { RelatedNotesCard } from "@/features/notes/components/related-notes-card";
+import { useNoteRelationImpact } from "@/features/notes/queries";
 import { useReadingProgress } from "@/features/reader/queries";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -71,6 +73,11 @@ export function BookDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const noteImpactQuery = useNoteRelationImpact(
+    "book",
+    validId ? bookId : 0,
+    deleteOpen && validId,
+  );
 
   const book = bookQuery.data;
 
@@ -281,6 +288,8 @@ export function BookDetailPage() {
         </CardContent>
       </Card>
 
+      <RelatedNotesCard targetType="book" targetId={book.id} />
+
       <Card className="bg-card/40">
         <CardHeader>
           <CardTitle className="text-sm">阅读</CardTitle>
@@ -335,6 +344,12 @@ export function BookDetailPage() {
               》的书籍记录、封面和阅读数据。若使用了“复制到应用资料库”，应用内副本也会删除。
               原始文件永远不会被删除或修改。此操作不可撤销。
             </DialogDescription>
+            {noteImpactQuery.data && noteImpactQuery.data.count > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                有 {noteImpactQuery.data.count}{" "}
+                篇笔记关联到本书，删除后这些关联会被移除，笔记本身保留。
+              </p>
+            ) : null}
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>

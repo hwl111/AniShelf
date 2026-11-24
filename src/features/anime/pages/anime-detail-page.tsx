@@ -20,6 +20,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 import { BangumiRefreshDialog } from "@/features/bangumi/components/bangumi-refresh-dialog";
+import { RelatedNotesCard } from "@/features/notes/components/related-notes-card";
+import { useNoteRelationImpact } from "@/features/notes/queries";
 
 import { AnimeFormDialog } from "../components/anime-form-dialog";
 import { EpisodeSection } from "../components/episode-section";
@@ -56,6 +58,11 @@ export function AnimeDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [refreshOpen, setRefreshOpen] = useState(false);
+  const noteImpactQuery = useNoteRelationImpact(
+    "anime",
+    validId ? animeId : 0,
+    deleteOpen && validId,
+  );
 
   const anime = animeQuery.data;
 
@@ -227,6 +234,8 @@ export function AnimeDetailPage() {
         </Card>
       </div>
 
+      <RelatedNotesCard targetType="anime" targetId={anime.id} />
+
       <EpisodeSection anime={anime} />
 
       {refreshOpen ? (
@@ -254,6 +263,12 @@ export function AnimeDetailPage() {
               将删除《{anime.title}
               》及其集数、观看记录、标签与关联关系。笔记不会被删除，但关联会移除。此操作不可撤销。
             </DialogDescription>
+            {noteImpactQuery.data && noteImpactQuery.data.count > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                有 {noteImpactQuery.data.count}{" "}
+                篇笔记关联到本作品或其集数，删除后这些关联会被移除，笔记本身保留。
+              </p>
+            ) : null}
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>
