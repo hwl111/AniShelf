@@ -4,6 +4,7 @@ import { NotFoundPage } from "@/components/common/not-found-page";
 import { AppShell } from "@/components/layout/app-shell";
 import { AnimeDetailPage } from "@/features/anime/pages/anime-detail-page";
 import { AnimePage } from "@/features/anime/pages/anime-page";
+import { BookDetailPage } from "@/features/books/pages/book-detail-page";
 import { BookshelfPage } from "@/features/books/pages/bookshelf-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { NotesPage } from "@/features/notes/pages/notes-page";
@@ -23,6 +24,7 @@ export const routes: RouteObject[] = [
       { path: "anime", element: <AnimePage /> },
       { path: "anime/:animeId", element: <AnimeDetailPage /> },
       { path: "bookshelf", element: <BookshelfPage /> },
+      { path: "bookshelf/:bookId", element: <BookDetailPage /> },
       { path: "reader", element: <ReaderPage /> },
       { path: "notes", element: <NotesPage /> },
       { path: "search", element: <SearchPage /> },
