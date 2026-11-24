@@ -8,6 +8,7 @@ import { BookDetailPage } from "@/features/books/pages/book-detail-page";
 import { BookshelfPage } from "@/features/books/pages/bookshelf-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { NotesPage } from "@/features/notes/pages/notes-page";
+import { EpubReaderPage } from "@/features/reader/pages/epub-reader-page";
 import { ReaderPage } from "@/features/reader/pages/reader-page";
 import { SearchPage } from "@/features/search/pages/search-page";
 import { SettingsPage } from "@/features/settings/pages/settings-page";
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
       { path: "bookshelf", element: <BookshelfPage /> },
       { path: "bookshelf/:bookId", element: <BookDetailPage /> },
       { path: "reader", element: <ReaderPage /> },
+      { path: "reader/:bookId", element: <EpubReaderPage /> },
       { path: "notes", element: <NotesPage /> },
       { path: "search", element: <SearchPage /> },
       { path: "settings", element: <SettingsPage /> },

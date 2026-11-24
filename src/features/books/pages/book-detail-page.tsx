@@ -1,10 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { ArrowLeft, FolderSearch, Pencil, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, FolderSearch, Pencil, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { PageContainer } from "@/components/layout/page-container";
@@ -21,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { useReadingProgress } from "@/features/reader/queries";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,7 @@ export function BookDetailPage() {
   const validId = Number.isInteger(bookId) && bookId > 0;
 
   const bookQuery = useBook(validId ? bookId : undefined);
+  const readingProgress = useReadingProgress(validId ? bookId : 0);
   const updateMutation = useUpdateBook();
   const deleteMutation = useDeleteBook();
   const favoriteMutation = useSetBookFavorite();
@@ -141,6 +142,14 @@ export function BookDetailPage() {
         }
         actions={
           <>
+            {book.format === "epub" && book.fileExists ? (
+              <Button asChild size="sm">
+                <Link to={`/reader/${book.id}`}>
+                  <BookOpen className="size-4" aria-hidden="true" />
+                  阅读
+                </Link>
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -275,12 +284,30 @@ export function BookDetailPage() {
         <CardHeader>
           <CardTitle className="text-sm">阅读</CardTitle>
         </CardHeader>
-        <CardContent>
-          <EmptyState
-            icon={FolderSearch}
-            title="尚未开始阅读"
-            description="阅读器接入后会显示进度、书签与批注。"
-          />
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm">
+              {readingProgress.data
+                ? `已阅读 ${(readingProgress.data.percent * 100).toFixed(1)}%`
+                : "尚未开始阅读"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              阅读进度会自动保存；书签可在阅读器内管理。
+            </p>
+          </div>
+
+          {book.format === "epub" && book.fileExists ? (
+            <Button asChild>
+              <Link to={`/reader/${book.id}`}>
+                <BookOpen className="size-4" aria-hidden="true" />
+                {readingProgress.data ? "继续阅读" : "开始阅读"}
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              {book.fileExists ? "该格式阅读器待接入" : "文件丢失"}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
