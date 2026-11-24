@@ -4,6 +4,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use sha2::{Digest, Sha256};
@@ -22,6 +24,9 @@ use crate::utils::now_ms;
 
 const MAX_FILE_BYTES: u64 = 1024 * 1024 * 1024;
 const MAX_COVER_BYTES: u64 = 10 * 1024 * 1024;
+const MAX_GENERATED_COVER_BYTES: usize = 2 * 1024 * 1024;
+const MAX_GENERATED_COVER_DATA_URL_CHARS: usize = 4 * 1024 * 1024;
+const GENERATED_COVER_PREFIX: &str = "data:image/png;base64,";
 const MAX_XML_BYTES: u64 = 5 * 1024 * 1024;
 const TEXT_PREVIEW_BYTES: usize = 64 * 1024;
 
@@ -154,6 +159,91 @@ pub async fn get(pool: &SqlitePool, paths: &AppPaths, id: i64) -> Result<Book, A
     let is_favorite = repository::is_favorite(pool, id).await?;
 
     Ok(build_book(row, tags, is_favorite, paths))
+}
+
+pub async fn save_generated_cover(
+    pool: &SqlitePool,
+    paths: &AppPaths,
+    id: i64,
+    data_url: &str,
+) -> Result<Book, AppError> {
+    let mut connection = pool.acquire().await?;
+    let row = repository::get_row(&mut connection, id)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("书籍 {id} 不存在")))?;
+    drop(connection);
+
+    if !matches!(row.format.as_str(), "pdf" | "txt") {
+        return Err(AppError::Validation(
+            "仅 PDF 或 TXT 书籍支持生成封面".to_string(),
+        ));
+    }
+    if row.cover_path.is_some() {
+        return get(pool, paths, id).await;
+    }
+
+    let bytes = decode_generated_cover(data_url)?;
+    std::fs::create_dir_all(&paths.covers_dir)?;
+
+    let file_name = format!("generated-cover-{id}-{}.png", now_ms());
+    let full_path = paths.covers_dir.join(&file_name);
+    let relative_path = format!("covers/{file_name}");
+    std::fs::write(&full_path, &bytes)?;
+
+    let result = sqlx::query("UPDATE books SET cover_path = ? WHERE id = ? AND cover_path IS NULL")
+        .bind(&relative_path)
+        .bind(id)
+        .execute(pool)
+        .await;
+
+    match result {
+        Ok(done) if done.rows_affected() == 1 => {
+            log::info!("已生成书籍封面：{}", full_path.display());
+            get(pool, paths, id).await
+        }
+        Ok(_) => {
+            let _ = std::fs::remove_file(&full_path);
+            get(pool, paths, id).await
+        }
+        Err(error) => {
+            let _ = std::fs::remove_file(&full_path);
+            Err(AppError::Database(error))
+        }
+    }
+}
+
+fn decode_generated_cover(data_url: &str) -> Result<Vec<u8>, AppError> {
+    if data_url.len() > MAX_GENERATED_COVER_DATA_URL_CHARS {
+        return Err(AppError::Validation("生成的封面数据过大".to_string()));
+    }
+    let payload = data_url
+        .strip_prefix(GENERATED_COVER_PREFIX)
+        .ok_or_else(|| AppError::Validation("封面数据必须是 PNG Data URL".to_string()))?;
+    let bytes = BASE64
+        .decode(payload)
+        .map_err(|_| AppError::Validation("封面数据不是有效的 Base64".to_string()))?;
+
+    if bytes.len() > MAX_GENERATED_COVER_BYTES {
+        return Err(AppError::Validation("生成的封面图片超过 2MB".to_string()));
+    }
+    if bytes.len() < 24 || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(AppError::Validation(
+            "封面数据不是有效的 PNG 图片".to_string(),
+        ));
+    }
+    if &bytes[12..16] != b"IHDR" {
+        return Err(AppError::Validation("封面 PNG 缺少 IHDR 信息".to_string()));
+    }
+
+    let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
+    if !(200..=2000).contains(&width) || !(200..=3000).contains(&height) {
+        return Err(AppError::Validation(
+            "封面图片尺寸必须在 200–2000 × 200–3000 之间".to_string(),
+        ));
+    }
+
+    Ok(bytes)
 }
 
 pub async fn update(
@@ -633,7 +723,7 @@ fn markdown_title(path: &Path) -> Result<String, AppError> {
 fn extract_epub(path: &Path) -> Result<ExtractedMetadata, AppError> {
     let file = File::open(path).map_err(map_io_error)?;
     let mut archive = ZipArchive::new(file).map_err(|error| {
-        eprintln!("[AniShelf] EPUB ZIP 解析失败：{error}");
+        log::error!("[AniShelf] EPUB ZIP 解析失败：{error}");
         AppError::Validation("EPUB 文件损坏或不是有效的 ZIP".to_string())
     })?;
 
@@ -658,7 +748,7 @@ fn extract_epub(path: &Path) -> Result<ExtractedMetadata, AppError> {
             }),
             Ok(None) => None,
             Err(error) => {
-                eprintln!("[AniShelf] EPUB 封面读取失败：{error}");
+                log::error!("[AniShelf] EPUB 封面读取失败：{error}");
                 None
             }
         }
@@ -706,7 +796,7 @@ fn parse_container_rootfile(xml: &[u8]) -> Result<String, AppError> {
             }
             Ok(Event::Eof) => break,
             Err(error) => {
-                eprintln!("[AniShelf] container.xml 解析失败：{error}");
+                log::error!("[AniShelf] container.xml 解析失败：{error}");
                 return Err(AppError::Validation(
                     "EPUB container.xml 解析失败".to_string(),
                 ));
@@ -805,7 +895,7 @@ fn parse_opf(xml: &[u8]) -> Result<ParsedOpf, AppError> {
             }
             Ok(Event::Eof) => break,
             Err(error) => {
-                eprintln!("[AniShelf] OPF 解析失败：{error}");
+                log::error!("[AniShelf] OPF 解析失败：{error}");
                 return Err(AppError::Validation("EPUB 内容清单解析失败".to_string()));
             }
             _ => {}
@@ -837,7 +927,7 @@ fn read_zip_entry(
         Ok(entry) => entry,
         Err(zip::result::ZipError::FileNotFound) => return Ok(None),
         Err(error) => {
-            eprintln!("[AniShelf] EPUB 条目读取失败：{error}");
+            log::error!("[AniShelf] EPUB 条目读取失败：{error}");
             return Err(AppError::Validation("EPUB 文件损坏".to_string()));
         }
     };
@@ -975,7 +1065,7 @@ fn cleanup_files(files: &[PathBuf]) {
         if let Err(error) = std::fs::remove_file(file)
             && error.kind() != std::io::ErrorKind::NotFound
         {
-            eprintln!("[AniShelf] 清理文件失败 {}：{error}", file.display());
+            log::error!("[AniShelf] 清理文件失败 {}：{error}", file.display());
         }
     }
 }
@@ -987,7 +1077,7 @@ fn remove_app_files(paths: &AppPaths, row: &BookRow) {
             && let Err(error) = std::fs::remove_file(&path)
             && error.kind() != std::io::ErrorKind::NotFound
         {
-            eprintln!("[AniShelf] 删除封面失败 {}：{error}", path.display());
+            log::error!("[AniShelf] 删除封面失败 {}：{error}", path.display());
         }
     }
 
@@ -997,7 +1087,7 @@ fn remove_app_files(paths: &AppPaths, row: &BookRow) {
             && let Err(error) = std::fs::remove_file(&path)
             && error.kind() != std::io::ErrorKind::NotFound
         {
-            eprintln!("[AniShelf] 删除应用内副本失败 {}：{error}", path.display());
+            log::error!("[AniShelf] 删除应用内副本失败 {}：{error}", path.display());
         }
     }
 }
@@ -1439,5 +1529,69 @@ mod tests {
         assert!(
             resolve_archive_path("OEBPS/content.opf", "https://example.com/cover.png").is_none()
         );
+    }
+
+    fn fake_png(width: u32, height: u32) -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
+        bytes.extend_from_slice(&13u32.to_be_bytes());
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&width.to_be_bytes());
+        bytes.extend_from_slice(&height.to_be_bytes());
+        bytes.extend_from_slice(&[8, 2, 0, 0, 0]);
+        bytes.extend_from_slice(&[0, 0, 0, 0]);
+        bytes
+    }
+
+    fn png_data_url(width: u32, height: u32) -> String {
+        format!(
+            "data:image/png;base64,{}",
+            BASE64.encode(fake_png(width, height))
+        )
+    }
+
+    #[tokio::test]
+    async fn generated_cover_is_validated_stored_and_cleaned_up() {
+        let (dir, pool, paths) = setup().await;
+        let file = dir.path().join("cover-source.txt");
+        std::fs::write(&file, "cover source").expect("file");
+        let book = import(&pool, &paths, &file, false).await.book;
+        assert!(book.cover_path.is_none());
+
+        let saved = save_generated_cover(&pool, &paths, book.id, &png_data_url(600, 800))
+            .await
+            .expect("save cover");
+        let cover_path = saved.cover_path.clone().expect("cover path");
+        assert!(cover_path.starts_with("covers/generated-cover-"));
+        let full_path = paths.data_dir.join(&cover_path);
+        assert!(full_path.is_file());
+
+        let second = save_generated_cover(&pool, &paths, book.id, &png_data_url(300, 400))
+            .await
+            .expect("second save");
+        assert_eq!(second.cover_path, Some(cover_path.clone()));
+
+        assert!(decode_generated_cover(&png_data_url(10, 10)).is_err());
+        assert!(decode_generated_cover("data:image/png;base64,AAAA").is_err());
+        assert!(decode_generated_cover("data:image/jpeg;base64,AAAA").is_err());
+
+        delete(&pool, &paths, book.id).await.expect("delete");
+        assert!(!full_path.exists());
+    }
+
+    #[tokio::test]
+    async fn generated_cover_is_rejected_for_epub_books() {
+        let (_dir, pool, paths) = setup().await;
+        let id = sqlx::query(
+            "INSERT INTO books
+             (title, format, file_path, normalized_path, file_size, imported_at, created_at, updated_at)
+             VALUES ('EPUB 书', 'epub', '/tmp/epub.epub', '/tmp/epub.epub', 1, 1, 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .expect("book")
+        .last_insert_rowid();
+
+        let result = save_generated_cover(&pool, &paths, id, &png_data_url(600, 800)).await;
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 }

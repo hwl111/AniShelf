@@ -42,6 +42,15 @@ pub async fn delete_book(state: State<'_, AppState>, id: i64) -> Result<(), AppE
 }
 
 #[tauri::command]
+pub async fn save_generated_cover(
+    state: State<'_, AppState>,
+    id: i64,
+    data_url: String,
+) -> Result<Book, AppError> {
+    book_service::save_generated_cover(&state.pool, &state.paths, id, &data_url).await
+}
+
+#[tauri::command]
 pub async fn set_book_favorite(
     state: State<'_, AppState>,
     id: i64,

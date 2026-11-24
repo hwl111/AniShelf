@@ -129,7 +129,7 @@ pub async fn import_subject_record(
     )
     .await
     {
-        eprintln!("[AniShelf] 写入 Bangumi 同步日志失败：{error}");
+        log::error!("[AniShelf] 写入 Bangumi 同步日志失败：{error}");
     }
 
     Ok(anime)
@@ -182,7 +182,7 @@ pub async fn apply_refresh(pool: &SqlitePool, anime_id: i64) -> Result<Anime, Ap
             )
             .await
             {
-                eprintln!("[AniShelf] 写入 Bangumi 同步日志失败：{log_error}");
+                log::error!("[AniShelf] 写入 Bangumi 同步日志失败：{log_error}");
             }
             return Err(map_bangumi_error(error));
         }
@@ -205,7 +205,7 @@ pub async fn apply_refresh(pool: &SqlitePool, anime_id: i64) -> Result<Anime, Ap
             )
             .await
             {
-                eprintln!("[AniShelf] 写入 Bangumi 同步日志失败：{error}");
+                log::error!("[AniShelf] 写入 Bangumi 同步日志失败：{error}");
             }
             Ok(updated)
         }
@@ -221,7 +221,7 @@ pub async fn apply_refresh(pool: &SqlitePool, anime_id: i64) -> Result<Anime, Ap
             )
             .await
             {
-                eprintln!("[AniShelf] 写入 Bangumi 同步日志失败：{log_error}");
+                log::error!("[AniShelf] 写入 Bangumi 同步日志失败：{log_error}");
             }
             Err(error)
         }

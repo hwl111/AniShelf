@@ -12,6 +12,22 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("anishelf".to_string()),
+                    }),
+                ])
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -22,6 +38,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::system::get_database_status,
             commands::dashboard::get_dashboard,
+            commands::backup::list_backups,
+            commands::backup::create_backup,
+            commands::backup::stage_restore,
+            commands::backup::cancel_pending_restore,
+            commands::backup::get_app_info,
+            commands::backup::restart_app,
             commands::search::search_all,
             commands::anime::list_anime,
             commands::anime::get_anime,
@@ -51,6 +73,7 @@ pub fn run() {
             commands::book::import_book,
             commands::book::update_book,
             commands::book::delete_book,
+            commands::book::save_generated_cover,
             commands::book::set_book_favorite,
             commands::book::check_book_file,
             commands::book::relocate_book,

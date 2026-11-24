@@ -80,13 +80,21 @@ pub struct DatabaseStatus {
 
 pub async fn init(app: &AppHandle) -> Result<AppState, AppError> {
     let paths = AppPaths::resolve(app)?;
+    log::info!("AniShelf 数据目录：{}", paths.data_dir.display());
+
+    if let Some(applied) = crate::services::backup_service::apply_pending_restore(&paths).await? {
+        log::info!("启动时已应用暂存的数据库恢复：{}", applied.display());
+    }
+
     let pool = connect(&paths.database_file).await?;
 
     let report = migrate::run(&pool, &paths.backups_dir).await?;
     if report.applied > 0 {
-        eprintln!(
-            "[AniShelf] 已应用 {} 个数据库迁移，当前版本 {}，迁移前备份：{:?}",
-            report.applied, report.current_version, report.backup
+        log::info!(
+            "已应用 {} 个数据库迁移，当前版本 {}，迁移前备份：{:?}",
+            report.applied,
+            report.current_version,
+            report.backup
         );
     }
 

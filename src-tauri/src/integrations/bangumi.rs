@@ -143,7 +143,7 @@ impl BangumiClient {
             .timeout(Duration::from_secs(15))
             .build()
             .map_err(|error| {
-                eprintln!("[AniShelf] 初始化 Bangumi 客户端失败：{error}");
+                log::error!("[AniShelf] 初始化 Bangumi 客户端失败：{error}");
                 BangumiError::Network
             })?;
 
@@ -172,7 +172,7 @@ impl BangumiClient {
         let response = check_status(response)?;
 
         let body: SearchResponse = response.json().await.map_err(|error| {
-            eprintln!("[AniShelf] Bangumi 搜索响应解析失败：{error}");
+            log::error!("[AniShelf] Bangumi 搜索响应解析失败：{error}");
             BangumiError::Parse
         })?;
 
@@ -194,7 +194,7 @@ impl BangumiClient {
         let response = check_status(response)?;
 
         response.json().await.map_err(|error| {
-            eprintln!("[AniShelf] Bangumi 作品响应解析失败：{error}");
+            log::error!("[AniShelf] Bangumi 作品响应解析失败：{error}");
             BangumiError::Parse
         })
     }
@@ -231,7 +231,7 @@ fn check_status(response: reqwest::Response) -> Result<reqwest::Response, Bangum
 }
 
 fn map_network_error(error: reqwest::Error) -> BangumiError {
-    eprintln!("[AniShelf] Bangumi 网络请求失败：{error}");
+    log::error!("[AniShelf] Bangumi 网络请求失败：{error}");
     BangumiError::Network
 }
 

@@ -8,6 +8,14 @@ use crate::error::AppError;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
+pub fn latest_version() -> i64 {
+    MIGRATOR
+        .iter()
+        .map(|migration| migration.version)
+        .max()
+        .unwrap_or(0)
+}
+
 #[derive(Debug)]
 pub struct MigrationReport {
     pub applied: usize,

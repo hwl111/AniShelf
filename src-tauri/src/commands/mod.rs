@@ -1,4 +1,5 @@
 pub mod anime;
+pub mod backup;
 pub mod bangumi;
 pub mod book;
 pub mod dashboard;
