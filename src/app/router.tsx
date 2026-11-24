@@ -1,6 +1,7 @@
-import { createHashRouter, Outlet, type RouteObject } from "react-router";
+import { createHashRouter, type RouteObject } from "react-router";
 
 import { NotFoundPage } from "@/components/common/not-found-page";
+import { AppShell } from "@/components/layout/app-shell";
 import { AnimePage } from "@/features/anime/pages/anime-page";
 import { BookshelfPage } from "@/features/books/pages/bookshelf-page";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
@@ -14,7 +15,7 @@ import { RouteErrorPage } from "./route-error-page";
 export const routes: RouteObject[] = [
   {
     path: "/",
-    element: <Outlet />,
+    element: <AppShell />,
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <DashboardPage /> },
