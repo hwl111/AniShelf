@@ -179,6 +179,7 @@ export function BookshelfPage() {
               <Card className="h-full gap-0 overflow-hidden bg-card/40 py-0 transition-colors group-hover:border-ring/40 group-hover:bg-card">
                 <div className="aspect-[3/4] w-full overflow-hidden bg-muted">
                   <BookCover
+                    book={book}
                     coverUrl={book.coverUrl}
                     title={book.title}
                     className="h-full w-full transition-transform group-hover:scale-[1.02]"

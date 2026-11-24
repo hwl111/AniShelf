@@ -23,6 +23,10 @@ export function deleteBook(id: number): Promise<void> {
   return invokeCommand<void>("delete_book", { id });
 }
 
+export function saveGeneratedCover(id: number, dataUrl: string): Promise<Book> {
+  return invokeCommand<Book>("save_generated_cover", { id, dataUrl });
+}
+
 export function setBookFavorite(id: number, favorite: boolean): Promise<Book> {
   return invokeCommand<Book>("set_book_favorite", { id, favorite });
 }

@@ -185,7 +185,12 @@ export function BookDetailPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="gap-0 overflow-hidden bg-card/40 py-0">
           <div className="aspect-[3/4] w-full bg-muted">
-            <BookCover coverUrl={book.coverUrl} title={book.title} className="h-full w-full" />
+            <BookCover
+              book={book}
+              coverUrl={book.coverUrl}
+              title={book.title}
+              className="h-full w-full"
+            />
           </div>
         </Card>
 
