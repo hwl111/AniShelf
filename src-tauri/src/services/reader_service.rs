@@ -10,23 +10,26 @@ use crate::models::reader::{
 use crate::utils::now_ms;
 
 const MAX_EPUB_BYTES: u64 = 200 * 1024 * 1024;
+const MAX_PDF_BYTES: u64 = 300 * 1024 * 1024;
 const MAX_LOCATION_JSON_CHARS: usize = 10_000;
 const MAX_SETTINGS_JSON_CHARS: usize = 20_000;
 const MAX_LABEL_CHARS: usize = 200;
 const READER_SCOPES: [&str; 5] = ["global", "epub", "pdf", "txt", "markdown"];
 
-pub async fn read_epub_bytes(pool: &SqlitePool, book_id: i64) -> Result<Vec<u8>, AppError> {
+pub async fn read_book_bytes(pool: &SqlitePool, book_id: i64) -> Result<Vec<u8>, AppError> {
     let mut connection = pool.acquire().await?;
     let row = crate::repositories::book_repository::get_row(&mut connection, book_id)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("书籍 {book_id} 不存在")))?;
     drop(connection);
 
-    if row.format != "epub" {
-        return Err(AppError::Validation(
-            "该书籍不是 EPUB，当前阅读器尚未接入此格式".to_string(),
-        ));
-    }
+    let max_bytes = match row.format.as_str() {
+        "epub" => MAX_EPUB_BYTES,
+        "pdf" => MAX_PDF_BYTES,
+        _ => {
+            return Err(AppError::Validation("该格式阅读器尚未接入".to_string()));
+        }
+    };
 
     let path = PathBuf::from(&row.file_path);
     let metadata = std::fs::metadata(&path).map_err(map_io_error)?;
@@ -35,13 +38,16 @@ pub async fn read_epub_bytes(pool: &SqlitePool, book_id: i64) -> Result<Vec<u8>,
             "书籍文件不存在或不可访问，请重新定位".to_string(),
         ));
     }
-    if metadata.len() > MAX_EPUB_BYTES {
-        return Err(AppError::Validation("EPUB 文件超过 200MB 上限".to_string()));
+    if metadata.len() > max_bytes {
+        return Err(AppError::Validation(format!(
+            "文件超过 {}MB 上限",
+            max_bytes / (1024 * 1024)
+        )));
     }
 
     tokio::task::spawn_blocking(move || std::fs::read(&path))
         .await
-        .map_err(|error| AppError::Internal(format!("读取 EPUB 失败：{error}")))?
+        .map_err(|error| AppError::Internal(format!("读取书籍文件失败：{error}")))?
         .map_err(map_io_error)
 }
 
@@ -316,10 +322,8 @@ fn validate_scope(scope: &str) -> Result<(), AppError> {
 }
 
 fn validate_location(location_type: &str, location_json: &str) -> Result<(), AppError> {
-    if location_type != "epub_cfi" {
-        return Err(AppError::Validation(
-            "当前仅支持 EPUB CFI 阅读位置".to_string(),
-        ));
+    if !matches!(location_type, "epub_cfi" | "pdf_page") {
+        return Err(AppError::Validation("不支持的阅读位置类型".to_string()));
     }
 
     validate_json_object(location_json, "阅读位置")
@@ -400,18 +404,56 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reads_epub_bytes_and_rejects_other_formats() {
+    async fn reads_epub_and_pdf_bytes_and_rejects_other_formats() {
         let (dir, pool) = setup().await;
-        let book_id = insert_book(&pool, dir.path(), "epub").await;
-
-        let bytes = read_epub_bytes(&pool, book_id).await.expect("read");
-        assert_eq!(bytes, b"book-bytes");
-
+        let epub_id = insert_book(&pool, dir.path(), "epub").await;
         let pdf_id = insert_book(&pool, dir.path(), "pdf").await;
+        let txt_id = insert_book(&pool, dir.path(), "txt").await;
+
+        assert_eq!(
+            read_book_bytes(&pool, epub_id).await.expect("epub"),
+            b"book-bytes"
+        );
+        assert_eq!(
+            read_book_bytes(&pool, pdf_id).await.expect("pdf"),
+            b"book-bytes"
+        );
         assert!(matches!(
-            read_epub_bytes(&pool, pdf_id).await,
+            read_book_bytes(&pool, txt_id).await,
             Err(AppError::Validation(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn pdf_page_locations_are_supported() {
+        let (dir, pool) = setup().await;
+        let book_id = insert_book(&pool, dir.path(), "pdf").await;
+
+        let saved = save_progress(
+            &pool,
+            book_id,
+            ProgressInput {
+                location_type: "pdf_page".to_string(),
+                location_json: r#"{"page":2,"mode":"fit-width","scale":1.2}"#.to_string(),
+                percent: 0.5,
+            },
+        )
+        .await
+        .expect("pdf progress");
+        assert_eq!(saved.percent, 0.5);
+
+        let bookmark = create_bookmark(
+            &pool,
+            book_id,
+            BookmarkInput {
+                location_type: "pdf_page".to_string(),
+                location_json: r#"{"page":2,"mode":"fit-width","scale":1.2}"#.to_string(),
+                label: "第 2 页".to_string(),
+            },
+        )
+        .await
+        .expect("pdf bookmark");
+        assert_eq!(bookmark.label, "第 2 页");
     }
 
     #[tokio::test]
@@ -495,7 +537,7 @@ mod tests {
                 &pool,
                 book_id,
                 BookmarkInput {
-                    location_type: "pdf_page".to_string(),
+                    location_type: "unknown_location".to_string(),
                     location_json: "{}".to_string(),
                     label: String::new(),
                 },

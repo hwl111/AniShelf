@@ -13,7 +13,7 @@ pub async fn read_book_bytes(
     state: State<'_, AppState>,
     book_id: i64,
 ) -> Result<tauri::ipc::Response, AppError> {
-    let bytes = reader_service::read_epub_bytes(&state.pool, book_id).await?;
+    let bytes = reader_service::read_book_bytes(&state.pool, book_id).await?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
