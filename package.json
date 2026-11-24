@@ -1,7 +1,7 @@
 {
   "name": "anishelf",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AniShelf - local-first anime, reading and notes manager",
   "type": "module",
   "scripts": {
