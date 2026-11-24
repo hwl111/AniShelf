@@ -26,7 +26,16 @@ pub fn run() {
             commands::anime::update_anime,
             commands::anime::delete_anime,
             commands::anime::set_anime_favorite,
-            commands::anime::list_tags
+            commands::anime::list_tags,
+            commands::episode::list_episodes,
+            commands::episode::create_episode,
+            commands::episode::update_episode,
+            commands::episode::delete_episode,
+            commands::episode::set_episode_watched,
+            commands::episode::list_watch_records,
+            commands::episode::add_watch_record,
+            commands::episode::update_watch_record,
+            commands::episode::delete_watch_record
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

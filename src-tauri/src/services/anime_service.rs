@@ -8,6 +8,7 @@ use crate::models::anime::{
 };
 use crate::models::tag::Tag;
 use crate::repositories::anime_repository as repository;
+use crate::repositories::episode_repository;
 use crate::utils::now_ms;
 
 const MAX_TITLE_CHARS: usize = 300;
@@ -60,6 +61,7 @@ pub async fn create(pool: &SqlitePool, input: AnimeInput) -> Result<Anime, AppEr
     let mut transaction = pool.begin().await?;
     let id = repository::insert(&mut transaction, &input, &aliases_json, now).await?;
     repository::set_tags(&mut transaction, id, &input.tags, now).await?;
+    episode_repository::ensure_episodes(&mut transaction, id, input.total_episodes, now).await?;
     transaction.commit().await?;
 
     get(pool, id).await
@@ -78,6 +80,7 @@ pub async fn update(pool: &SqlitePool, id: i64, input: AnimeInput) -> Result<Ani
 
     repository::update(&mut transaction, id, &input, &aliases_json, now).await?;
     repository::set_tags(&mut transaction, id, &input.tags, now).await?;
+    episode_repository::ensure_episodes(&mut transaction, id, input.total_episodes, now).await?;
     transaction.commit().await?;
 
     get(pool, id).await
