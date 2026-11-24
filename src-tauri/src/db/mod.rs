@@ -7,6 +7,8 @@ use tauri::{AppHandle, Manager};
 
 use crate::error::AppError;
 
+pub mod migrate;
+
 /// Directories created on startup. Import, reader and backup phases consume
 /// some of these fields later, so not every path is read yet.
 #[allow(dead_code)]
@@ -76,6 +78,14 @@ pub struct DatabaseStatus {
 pub async fn init(app: &AppHandle) -> Result<AppState, AppError> {
     let paths = AppPaths::resolve(app)?;
     let pool = connect(&paths.database_file).await?;
+
+    let report = migrate::run(&pool, &paths.backups_dir).await?;
+    if report.applied > 0 {
+        eprintln!(
+            "[AniShelf] 已应用 {} 个数据库迁移，当前版本 {}，迁移前备份：{:?}",
+            report.applied, report.current_version, report.backup
+        );
+    }
 
     Ok(AppState { pool, paths })
 }
