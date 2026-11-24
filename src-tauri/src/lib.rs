@@ -13,6 +13,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let state = tauri::async_runtime::block_on(db::init(app.handle()))?;
             app.manage(state);
@@ -43,7 +44,15 @@ pub fn run() {
             commands::bangumi::apply_bangumi_refresh,
             commands::bangumi::get_bangumi_token_status,
             commands::bangumi::set_bangumi_token,
-            commands::bangumi::check_bangumi_connection
+            commands::bangumi::check_bangumi_connection,
+            commands::book::list_books,
+            commands::book::get_book,
+            commands::book::import_book,
+            commands::book::update_book,
+            commands::book::delete_book,
+            commands::book::set_book_favorite,
+            commands::book::check_book_file,
+            commands::book::relocate_book
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
