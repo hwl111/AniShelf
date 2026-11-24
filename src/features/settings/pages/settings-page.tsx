@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Cloud, Database, FolderOpen, RefreshCw, ShieldCheck } from "lucide-react";
+import { Cloud, Database, RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
@@ -18,6 +18,8 @@ import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { getDatabaseStatus } from "../api";
+import { AboutCard } from "../components/about-card";
+import { BackupSection } from "../components/backup-section";
 
 interface StatusRowProps {
   label: string;
@@ -121,17 +123,7 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/40 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FolderOpen className="size-4" aria-hidden="true" />
-                备份提示
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              数据库、封面和附件位于应用数据目录；原始书籍文件默认保留在原位置，备份数据时需要单独备份这些书籍文件。
-            </CardContent>
-          </Card>
+          <BackupSection />
 
           <Card className="bg-card/40 md:col-span-2">
             <CardHeader>
@@ -207,6 +199,8 @@ export function SettingsPage() {
               </p>
             </CardContent>
           </Card>
+
+          <AboutCard />
         </div>
       ) : null}
     </PageContainer>
