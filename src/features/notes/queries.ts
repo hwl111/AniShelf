@@ -89,6 +89,7 @@ export function useCreateNote() {
     mutationFn: (input: NoteInput) => api.createNote(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: noteKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("笔记已创建");
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -102,6 +103,7 @@ export function useUpdateNote() {
     mutationFn: ({ id, input }: { id: number; input: NoteInput }) => api.updateNote(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: noteKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("笔记已保存");
     },
     onError: (error) => toast.error(errorMessage(error)),
