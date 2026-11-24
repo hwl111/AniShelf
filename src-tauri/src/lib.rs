@@ -52,7 +52,18 @@ pub fn run() {
             commands::book::delete_book,
             commands::book::set_book_favorite,
             commands::book::check_book_file,
-            commands::book::relocate_book
+            commands::book::relocate_book,
+            commands::reader::read_book_bytes,
+            commands::reader::get_reading_progress,
+            commands::reader::save_reading_progress,
+            commands::reader::list_bookmarks,
+            commands::reader::create_bookmark,
+            commands::reader::delete_bookmark,
+            commands::reader::get_reader_settings,
+            commands::reader::save_reader_settings,
+            commands::reader::start_reading_session,
+            commands::reader::end_reading_session,
+            commands::reader::open_external_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
