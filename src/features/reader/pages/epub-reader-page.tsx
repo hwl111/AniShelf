@@ -8,7 +8,7 @@ import {
   List,
   Settings,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -48,6 +48,7 @@ import {
   useReaderSettings,
 } from "../queries";
 import type { Bookmark, ReaderPreferences } from "../types";
+import { createWheelPager } from "../wheel-paging";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -95,6 +96,20 @@ export function EpubReaderPage() {
   const [currentLabel, setCurrentLabel] = useState("");
   const [percent, setPercent] = useState(0);
   const [chapterPage, setChapterPage] = useState<{ page: number; total: number } | null>(null);
+
+  const updateChapterPage = useCallback(
+    (displayed: { page?: number; total?: number } | null | undefined) => {
+      const page = Number(displayed?.page);
+      const total = Number(displayed?.total);
+      if (!Number.isFinite(page) || !Number.isFinite(total) || page <= 0 || total <= 0) {
+        setChapterPage(null);
+        return;
+      }
+
+      setChapterPage({ page: Math.min(page, total), total });
+    },
+    [],
+  );
 
   const loadedBookId = bookQuery.data?.id ?? null;
   const savedLocationJson = progressQuery.data?.locationJson ?? null;
@@ -168,6 +183,7 @@ export function EpubReaderPage() {
     }
 
     let cancelled = false;
+    let wheelHandler: ((event: WheelEvent) => void) | null = null;
     const viewer = viewerRef.current;
 
     async function initialize() {
@@ -227,8 +243,13 @@ export function EpubReaderPage() {
           const cfi = location.start.cfi;
           const href = location.start.href;
           const displayed = location.start.displayed;
-          const totalPages = displayed.total > 0 ? displayed.total : 1;
-          const pageFraction = Math.min(1, Math.max(0, displayed.page / totalPages));
+          const displayedPage =
+            displayed && Number.isFinite(displayed.page) && displayed.page > 0 ? displayed.page : 1;
+          const displayedTotal =
+            displayed && Number.isFinite(displayed.total) && displayed.total > 0
+              ? displayed.total
+              : 1;
+          const pageFraction = Math.min(1, Math.max(0, displayedPage / displayedTotal));
           const spineLength =
             (opened.book.spine as unknown as { spineItems?: unknown[] }).spineItems?.length ?? 0;
           const spineIndex = Number.isFinite(location.start.index) ? location.start.index : 0;
@@ -260,10 +281,7 @@ export function EpubReaderPage() {
           setCurrentCfi(cfi);
           setCurrentLabel(findTocLabel(entries, href) ?? "");
           setPercent(nextPercent);
-          setChapterPage({
-            page: location.start.displayed.page,
-            total: location.start.displayed.total,
-          });
+          updateChapterPage(location.start.displayed);
           scheduleSave();
         }
 
@@ -281,6 +299,29 @@ export function EpubReaderPage() {
 
         opened.rendition.on("relocated", handleRelocated);
         opened.rendition.on("linkClicked", handleLinkClicked);
+
+        const wheelPager = createWheelPager({
+          onNext: () => {
+            void opened.rendition.next();
+          },
+          onPrevious: () => {
+            void opened.rendition.prev();
+          },
+        });
+        wheelHandler = (event: WheelEvent) => {
+          if (document.querySelector('[role="dialog"]')) {
+            return;
+          }
+          if (wheelPager(event)) {
+            event.preventDefault();
+          }
+        };
+        viewer.addEventListener("wheel", wheelHandler, { passive: false });
+        opened.rendition.hooks.content.register((contents: { document: Document }) => {
+          contents.document.addEventListener("wheel", (event) => wheelHandler?.(event), {
+            passive: false,
+          });
+        });
 
         const savedCfi = parseCfi(savedLocationJson);
         try {
@@ -345,6 +386,11 @@ export function EpubReaderPage() {
     return () => {
       cancelled = true;
 
+      if (wheelHandler) {
+        viewer.removeEventListener("wheel", wheelHandler);
+        wheelHandler = null;
+      }
+
       if (saveTimeoutRef.current !== null) {
         window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
@@ -387,6 +433,7 @@ export function EpubReaderPage() {
     settingsFetched,
     retryKey,
     validId,
+    updateChapterPage,
   ]);
 
   function retry() {
@@ -407,6 +454,35 @@ export function EpubReaderPage() {
         .saveReaderSettings("epub", JSON.stringify(next))
         .catch((error: unknown) => toast.error(errorText(error, "保存阅读设置失败")));
     }, 400);
+  }
+
+  function refreshChapterPage(rendition: Rendition) {
+    window.setTimeout(() => {
+      void Promise.resolve(rendition.currentLocation())
+        .then((location) => {
+          const displayed = (
+            location as {
+              start?: { displayed?: { page?: number; total?: number } };
+            }
+          ).start?.displayed;
+          updateChapterPage(displayed);
+        })
+        .catch(() => undefined);
+    }, 120);
+  }
+
+  function displayReaderTarget(target: string, errorMessage: string) {
+    const rendition = renditionRef.current;
+    if (!rendition) {
+      return;
+    }
+
+    void rendition
+      .display(target)
+      .then(() => refreshChapterPage(rendition))
+      .catch((error: unknown) => {
+        toast.error(errorText(error, errorMessage));
+      });
   }
 
   function openBookmarkDialog() {
@@ -441,16 +517,71 @@ export function EpubReaderPage() {
       return;
     }
 
-    void renditionRef.current?.display(cfi).catch((error: unknown) => {
-      toast.error(errorText(error, "无法跳转到书签"));
-    });
+    displayReaderTarget(cfi, "无法跳转到书签");
+  }
+
+  function resolveTocHref(href: string): string {
+    if (!href || href.startsWith("#") || href.startsWith("/")) {
+      return href;
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+      return href;
+    }
+
+    const book = bookRef.current;
+    const packaging = (
+      book as unknown as {
+        packaging?: { navPath?: string | false; ncxPath?: string | false };
+      } | null
+    )?.packaging;
+    const navigationPath = packaging?.navPath || packaging?.ncxPath;
+    if (!navigationPath || !navigationPath.includes("/")) {
+      return href;
+    }
+
+    const baseDir = navigationPath.slice(0, navigationPath.lastIndexOf("/"));
+    const [pathPart, fragment] = href.split("#");
+    const parts: string[] = [];
+
+    for (const part of [...baseDir.split("/"), ...pathPart.split("/")]) {
+      if (!part || part === ".") {
+        continue;
+      }
+      if (part === "..") {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    const resolved = parts.join("/");
+    return fragment ? `${resolved}#${fragment}` : resolved;
   }
 
   function jumpToToc(href: string) {
     setTocOpen(false);
-    void renditionRef.current?.display(href).catch((error: unknown) => {
-      toast.error(errorText(error, "无法打开章节"));
-    });
+    const rendition = renditionRef.current;
+    if (!rendition) {
+      return;
+    }
+
+    // Navigation hrefs are relative to the nav/NCX document, while the
+    // spine uses paths relative to the OPF. Resolve the former first.
+    const resolved = resolveTocHref(href);
+    const spine = bookRef.current?.spine;
+    const target = spine?.get(resolved) ? resolved : spine?.get(href) ? href : resolved;
+
+    // Closing the TOC changes the viewer width; epub.js resizes and
+    // re-displays the previous location. Delay the jump so it is queued
+    // after that resize, otherwise the jump is immediately overridden.
+    window.setTimeout(() => {
+      void rendition
+        .display(target)
+        .then(() => refreshChapterPage(rendition))
+        .catch((error: unknown) => {
+          toast.error(errorText(error, "无法打开章节"));
+        });
+    }, 80);
   }
 
   if (!validId) {
@@ -625,7 +756,9 @@ export function EpubReaderPage() {
       <footer className="flex h-9 shrink-0 items-center justify-between border-t border-border px-3 text-xs text-muted-foreground">
         <span className="truncate">{currentLabel || "未定位章节"}</span>
         <span className="shrink-0">
-          {chapterPage ? `本章 ${chapterPage.page}/${chapterPage.total} 页 · ` : ""}
+          {chapterPage && chapterPage.total > 0
+            ? `本章 ${chapterPage.page}/${chapterPage.total} 页 · `
+            : ""}
           全书 {(percent * 100).toFixed(1)}%
         </span>
       </footer>

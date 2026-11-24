@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { WheelEvent as ReactWheelEvent } from "react";
 import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -40,6 +41,7 @@ import {
 } from "../pdf/pdf-renderer";
 import { useBookmarks, useCreateBookmark, useDeleteBookmark, useReadingProgress } from "../queries";
 import type { Bookmark } from "../types";
+import { createWheelPager } from "../wheel-paging";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -167,6 +169,8 @@ export function PdfReaderPage() {
     setZoomMode("custom");
     setRenderError(null);
   }, []);
+
+  const wheelPagerRef = useRef<ReturnType<typeof createWheelPager> | null>(null);
 
   useEffect(() => {
     if (!validId || !loadedBookId || !progressFetched || bookFormat !== "pdf") {
@@ -380,6 +384,38 @@ export function PdfReaderPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [goToPage, zoomBy]);
+
+  function handleWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    if (document.querySelector('[role="dialog"]')) {
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.deltaY === 0) {
+      return;
+    }
+    if (totalPagesRef.current === 0) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const canScrollDown = container.scrollTop + container.clientHeight < container.scrollHeight - 1;
+    const canScrollUp = container.scrollTop > 0;
+    if ((event.deltaY > 0 && canScrollDown) || (event.deltaY < 0 && canScrollUp)) {
+      return;
+    }
+
+    wheelPagerRef.current ??= createWheelPager({
+      onNext: () => goToPage(pageRef.current + 1),
+      onPrevious: () => goToPage(pageRef.current - 1),
+    });
+
+    if (wheelPagerRef.current(event.nativeEvent)) {
+      container.scrollTo({ top: 0, left: 0 });
+    }
+  }
 
   function changeZoomMode(mode: PdfZoomMode) {
     zoomModeRef.current = mode;
@@ -611,7 +647,11 @@ export function PdfReaderPage() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div ref={containerRef} className="relative min-w-0 flex-1 overflow-auto bg-muted/20 p-3">
+        <div
+          ref={containerRef}
+          className="relative min-w-0 flex-1 overflow-auto bg-muted/20 p-3"
+          onWheel={handleWheel}
+        >
           <div className="flex min-h-full items-start justify-center">
             <canvas ref={canvasRef} className="shadow-xl" />
           </div>
