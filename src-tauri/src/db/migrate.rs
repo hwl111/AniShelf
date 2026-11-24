@@ -187,4 +187,34 @@ mod tests {
 
         assert_eq!(legacy_table, 1);
     }
+
+    #[tokio::test]
+    async fn upgrades_partially_migrated_database_with_backup() {
+        let dir = tempdir().expect("tempdir");
+        let database_file = dir.path().join("anishelf.sqlite");
+        let backups_dir = dir.path().join("backups");
+        let pool = connect(&database_file).await.expect("connect");
+
+        let partial = sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(MIGRATOR.iter().take(1).cloned().collect()),
+            ..sqlx::migrate::Migrator::DEFAULT
+        };
+        partial.run(&pool).await.expect("partial migration");
+
+        sqlx::query("INSERT INTO app_settings (key, value_json, updated_at) VALUES ('theme', '\"dark\"', 1)")
+            .execute(&pool)
+            .await
+            .expect("insert setting");
+
+        let report = run(&pool, &backups_dir).await.expect("upgrade run");
+
+        assert_eq!(report.applied, MIGRATOR.iter().count() - 1);
+        assert!(report.backup.is_some());
+
+        let setting_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM app_settings")
+            .fetch_one(&pool)
+            .await
+            .expect("settings count");
+        assert_eq!(setting_count, 1);
+    }
 }
