@@ -27,10 +27,21 @@ pub struct AppPaths {
 
 impl AppPaths {
     pub fn resolve(app: &AppHandle) -> Result<Self, AppError> {
-        let data_dir = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|error| AppError::Internal(format!("无法获取应用数据目录：{error}")))?;
+        let data_dir = match std::env::var_os("ANISHELF_DATA_DIR") {
+            Some(value) if !value.is_empty() => {
+                let path = PathBuf::from(value);
+                if !path.is_absolute() {
+                    return Err(AppError::Internal(
+                        "ANISHELF_DATA_DIR 必须是绝对路径".to_string(),
+                    ));
+                }
+                path
+            }
+            _ => app
+                .path()
+                .app_local_data_dir()
+                .map_err(|error| AppError::Internal(format!("无法获取应用数据目录：{error}")))?,
+        };
 
         let database_dir = data_dir.join("database");
         let covers_dir = data_dir.join("covers");
